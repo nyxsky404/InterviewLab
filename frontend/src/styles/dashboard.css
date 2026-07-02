@@ -1,0 +1,203 @@
+/* Dashboard: app topbar, interview type picker, session history. */
+.shell {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 0 24px 64px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  margin-bottom: 26px;
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px 5px 5px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+.avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent-soft-2);
+  color: var(--accent-strong);
+  font-size: 12px;
+  font-weight: 700;
+}
+.user-chip .who {
+  line-height: 1.2;
+}
+.user-chip .who .name {
+  font-size: 13px;
+  font-weight: 600;
+}
+.user-chip .who .role {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 34px 0 14px;
+}
+.section-head p {
+  font-size: 13.5px;
+  color: var(--text-2);
+}
+
+/* ── Interview type cards ──────────────────────────────────────────────── */
+.type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+}
+
+.type-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.type-card:hover {
+  border-color: var(--card-accent, var(--accent));
+  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+}
+.type-card:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+}
+
+.type-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--card-soft, var(--accent-soft));
+  color: var(--card-accent, var(--accent));
+}
+
+.type-card .type-label {
+  font-size: 15px;
+  font-weight: 650;
+}
+.type-card .type-blurb {
+  font-size: 13px;
+  color: var(--text-2);
+  min-height: 40px;
+}
+.type-card .type-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-3);
+}
+
+/* ── Session history ───────────────────────────────────────────────────── */
+.session-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.session-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px;
+}
+.session-row + .session-row {
+  border-top: 1px solid var(--border);
+}
+
+.session-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.session-left .type-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  flex: none;
+}
+.session-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+.session-date {
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.session-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pill.done {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.pill.open {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.score-chip {
+  min-width: 44px;
+  text-align: center;
+  padding: 3px 8px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.empty-state {
+  padding: 36px 18px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 14px;
+}
