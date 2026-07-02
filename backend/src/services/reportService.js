@@ -7,37 +7,16 @@ import {
 import { listTurns } from "../models/turnModel.js";
 import { getEvaluationContext } from "../models/interviewModel.js";
 import { findFeedback, upsertFeedback, insertFeedbackIfAbsent } from "../models/feedbackModel.js";
-
-// The canonical story beats, in the order an interview tends to work through
-// them, with the label shown on the timeline. Mirrors TOPICS in the prompt.
-export const TOPIC_META = {
-  situation: "Situation / setup",
-  problem: "The core problem",
-  team: "Team & their role",
-  ownership: "Personal ownership",
-  alternatives: "Alternatives weighed",
-  tradeoff: "The key tradeoff",
-  validation: "Results & validation",
-  mistake: "Mistakes & surprises",
-  conflict: "Conflict / disagreement",
-  reflection: "Reflection & hindsight",
-};
-
-// How each beat rolls up into a STAR phase (Reflection kept separate — it's the
-// dimension candidates most often skip and the one worth calling out on its own).
-export const STAR_PHASES = [
-  ["Situation", ["situation", "problem"]],
-  ["Task", ["team"]],
-  ["Action", ["ownership", "alternatives", "tradeoff"]],
-  ["Result", ["validation"]],
-  ["Reflection", ["mistake", "conflict", "reflection"]],
-];
+import { typeProfile, topicLabelMap } from "../domain/interviewTypes.js";
 
 // Insert one live rubric judgment (called from the record_assessment tool).
-export async function recordAssessment(interviewId, { competency, topic, score, note }) {
+// The topic is validated against the interview type's rubric so a hallucinated
+// tag can't corrupt the timeline.
+export async function recordAssessment(interviewId, { competency, topic, score, note }, type) {
+  const topics = topicLabelMap(type);
   await addAssessment(interviewId, {
     competency,
-    topic: TOPIC_META[topic] ? topic : null,
+    topic: topics[topic] ? topic : null,
     score: Math.round(score),
     note: note || null,
   });
@@ -72,31 +51,33 @@ function countWords(s) {
   return (s || "").trim().split(/\s+/).filter(Boolean).length;
 }
 
-// Which story beats the interview actually reached, in coverage order, plus the
-// ones it never got to — this is the honest "what did the interviewer explore"
+// Which beats the interview actually reached, in coverage order, plus the ones
+// it never got to — this is the honest "what did the interviewer explore"
 // picture, straight from the logged per-answer tags.
-export function computeTimeline(assessments) {
+export function computeTimeline(assessments, type) {
+  const labels = topicLabelMap(type);
   const firstSeen = new Map();
   for (const a of assessments) {
-    if (a.topic && TOPIC_META[a.topic] && !firstSeen.has(a.topic)) {
+    if (a.topic && labels[a.topic] && !firstSeen.has(a.topic)) {
       firstSeen.set(a.topic, a.created_at);
     }
   }
-  return Object.keys(TOPIC_META).map((key) => ({
+  return Object.keys(labels).map((key) => ({
     topic: key,
-    label: TOPIC_META[key],
+    label: labels[key],
     covered: firstSeen.has(key),
   }));
 }
 
-// Average the per-answer scores within each STAR phase into a 1–5 rating. Phases
+// Average the per-answer scores within each of the type's phases (STAR for
+// behavioral, design coverage for system design, …) into a 1–5 rating. Phases
 // the interview never touched come back null (rendered as "not covered").
-export function computeStarRatings(assessments) {
+export function computePhaseRatings(assessments, type) {
   const byTopic = {};
   for (const a of assessments) {
     if (a.topic) (byTopic[a.topic] ||= []).push(a.score);
   }
-  return STAR_PHASES.map(([phase, topics]) => {
+  return typeProfile(type).phases.map(([phase, topics]) => {
     const scores = topics.flatMap((t) => byTopic[t] || []);
     const rating = scores.length
       ? Math.round((scores.reduce((s, n) => s + n, 0) / scores.length) * 2) / 2
@@ -124,6 +105,8 @@ export async function finalizeInterview(interviewId) {
     }
   }
 
+  const ctx = await getEvaluationContext(interviewId);
+  const type = ctx?.type;
   const perCompetency = await averageByCompetency(interviewId);
   const overall = perCompetency.length
     ? Math.round(
@@ -143,7 +126,7 @@ export async function finalizeInterview(interviewId) {
     overall_score: overall,
     summary,
     verdict: deriveVerdict(overall, perCompetency),
-    top_priorities: derivePriorities(perCompetency),
+    top_priorities: derivePriorities(perCompetency, type),
     per_competency: perCompetency,
     strengths,
     growth_areas: growthAreas,
@@ -240,26 +223,17 @@ export function deriveVerdict(overall, perCompetency) {
 }
 
 // The single most useful takeaway: a short, ordered list of what to fix first.
-// Built from the lowest-scoring competencies so the advice targets real gaps.
-const IMPROVEMENT_TIPS = {
-  ownership:
-    "State exactly what you personally built end-to-end before crediting the team.",
-  communication:
-    "Open each answer with a one-sentence headline, then walk through situation, action, and result.",
-  star_structure:
-    "Finish every story with a concrete Result, and don't skip the Situation that set it up.",
-  self_awareness:
-    "End each story with a genuine reflection — what went wrong and what you'd do differently now.",
-  impact:
-    "Back every metric with its sample size, time window, and how it was measured.",
-};
-
-export function derivePriorities(perCompetency) {
+// Built from the lowest-scoring competencies, using the type rubric's
+// prescriptive tips so the advice targets real gaps.
+export function derivePriorities(perCompetency, type) {
   if (!perCompetency.length) return [];
+  const tips = Object.fromEntries(
+    typeProfile(type).competencies.map((c) => [c.key, c.tip])
+  );
   return [...perCompetency]
     .sort((a, b) => a.score - b.score)
     .slice(0, 3)
-    .map((c) => IMPROVEMENT_TIPS[c.competency] || `Strengthen your ${humanizeCompetency(c.competency)}.`);
+    .map((c) => tips[c.competency] || `Strengthen your ${humanizeCompetency(c.competency)}.`);
 }
 
 function clampInt(n, min, max) {

@@ -3,11 +3,11 @@ import { recordAssessment } from "./reportService.js";
 // Handle a FunctionCallRequest emitted by the Deepgram-managed LLM.
 // Returns a small JSON-serializable payload sent back as FunctionCallResponse
 // so the agent's speech is never paused.
-export async function handleFunctionCall(interviewId, name, args) {
+export async function handleFunctionCall(interviewId, name, args, ctx = {}) {
   try {
     switch (name) {
       case "record_assessment":
-        await recordAssessment(interviewId, args);
+        await recordAssessment(interviewId, args, ctx.type);
         return { ok: true };
 
       // submit_evaluation is purely a "the interview is over" signal —

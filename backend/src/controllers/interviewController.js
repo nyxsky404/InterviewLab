@@ -11,16 +11,14 @@ import {
   finalizeInterview,
   computeMetrics,
   computeTimeline,
-  computeStarRatings,
+  computePhaseRatings,
 } from "../services/reportService.js";
-
-// Only "behavioral" is fully implemented; picker offers the rest as "coming soon".
-const SUPPORTED_TYPES = ["behavioral"];
+import { TYPE_KEYS, publicRubric } from "../domain/interviewTypes.js";
 
 export async function create(req, res) {
   const type = (req.body?.type || "behavioral").toLowerCase();
-  if (!SUPPORTED_TYPES.includes(type)) {
-    return res.status(400).json({ error: `Interview type "${type}" is not available yet` });
+  if (!TYPE_KEYS.includes(type)) {
+    return res.status(400).json({ error: `Unknown interview type "${type}"` });
   }
   const interview = await createInterview(req.userId, type);
   return res.status(201).json({ interview });
@@ -44,16 +42,20 @@ export async function detail(req, res) {
 
   // Prefer the report the post-call evaluator wrote; fall back to values derived
   // from the in-session assessments when the LLM report is absent.
-  const star = feedback?.star?.length ? feedback.star : computeStarRatings(assessments);
+  const star = feedback?.star?.length
+    ? feedback.star
+    : computePhaseRatings(assessments, interview.type);
 
-  // A story beat counts as covered if EITHER the post-call evaluator flagged it
+  // A topic counts as covered if EITHER the post-call evaluator flagged it
   // OR the live interviewer logged an assessment against it. Relying on the
   // evaluator alone blanks the whole timeline whenever that model names topics
   // loosely; folding in the in-session tags keeps it honest to what happened.
   const liveCovered = new Set(
-    computeTimeline(assessments).filter((t) => t.covered).map((t) => t.topic)
+    computeTimeline(assessments, interview.type).filter((t) => t.covered).map((t) => t.topic)
   );
-  const baseTimeline = feedback?.timeline?.length ? feedback.timeline : computeTimeline(assessments);
+  const baseTimeline = feedback?.timeline?.length
+    ? feedback.timeline
+    : computeTimeline(assessments, interview.type);
   const timeline = baseTimeline.map((t) => ({
     ...t,
     covered: t.covered || liveCovered.has(t.topic),
@@ -67,6 +69,7 @@ export async function detail(req, res) {
     metrics: computeMetrics(turns, assessments),
     timeline,
     star,
+    rubric: publicRubric(interview.type),
   });
 }
 

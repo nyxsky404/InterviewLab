@@ -1,6 +1,5 @@
 import { config } from "../config/index.js";
-import { COMPETENCIES, TOPICS } from "../prompts/interviewer.js";
-import { TOPIC_META, STAR_PHASES } from "./reportService.js";
+import { typeProfile, topicLabelMap } from "../domain/interviewTypes.js";
 
 // Post-call report generation. Reads the FULL transcript once the interview
 // ends and returns the structured feedback. The LLM supplies judgments only —
@@ -8,16 +7,9 @@ import { TOPIC_META, STAR_PHASES } from "./reportService.js";
 // can't corrupt the report. Throws on any failure so the caller can fall back
 // to the in-session assessment synthesis.
 
-const COMPETENCY_HINTS = {
-  communication: "clarity, structure, and pacing of answers",
-  star_structure: "telling a complete Situation → Task → Action → Result story",
-  self_awareness: "reflecting honestly on mistakes and what they'd change",
-  ownership: "distinguishing what they personally did from the team's work",
-  impact: "measurable, validated outcomes",
-};
-
 export async function evaluateTranscript({ turns, user, type }) {
   if (!config.evaluation.enabled) throw new Error("evaluation LLM not configured");
+  const rubric = typeProfile(type);
 
   const dialogue = turns
     .filter((t) => t.content && t.content.trim())
@@ -26,24 +18,25 @@ export async function evaluateTranscript({ turns, user, type }) {
   if (!dialogue) throw new Error("empty transcript");
 
   const raw = await callChatCompletion({
-    system: buildSystemPrompt(),
-    user: buildUserPrompt({ dialogue, user, type }),
+    system: buildSystemPrompt(rubric),
+    user: buildUserPrompt({ dialogue, user, rubric }),
   });
 
-  return normalize(raw);
+  return normalize(raw, rubric);
 }
 
-function buildSystemPrompt() {
-  const compList = COMPETENCIES.map((c) => `- ${c}: ${COMPETENCY_HINTS[c] || c}`).join("\n");
-  const topicList = TOPICS.map((t) => `- ${t}: ${TOPIC_META[t]}`).join("\n");
-  return `You are a seasoned engineering hiring manager writing structured feedback on a behavioral interview. You judge only what the transcript supports — never invent details, numbers, or quotes the candidate did not actually give. Be specific, fair, and direct.
+function buildSystemPrompt(rubric) {
+  const compList = rubric.competencies.map((c) => `- ${c.key}: ${c.hint}`).join("\n");
+  const topicList = rubric.topics.map((t) => `- ${t.key}: ${t.label}`).join("\n");
+  const phaseNames = rubric.phases.map(([name]) => name);
+  return `You are a seasoned hiring manager writing structured feedback on a ${rubric.label} interview. You judge only what the transcript supports — never invent details, numbers, or quotes the candidate did not actually give. Be specific, fair, and direct.
 
 Score these competencies 1 (weak) to 5 (excellent):
 ${compList}
 
-Rate each STAR phase 1-5 based on how completely the candidate's stories covered it, or null if it never came up. The phases are Situation, Task, Action, Result, Reflection.
+Rate each interview phase 1-5 based on how completely the candidate covered it, or null if it never came up. The phases are: ${phaseNames.join(", ")}.
 
-These are the story beats an interview can cover:
+These are the topics an interview of this type can cover:
 ${topicList}
 
 Respond with ONLY a JSON object in exactly this shape (no prose, no markdown):
@@ -54,16 +47,16 @@ Respond with ONLY a JSON object in exactly this shape (no prose, no markdown):
   "strengths": ["<concrete strength tied to something they actually said>", ...],
   "growth_areas": ["<prescriptive: name the gap, then what to do differently next time>", ...],
   "top_priorities": ["<the single most important fix>", "<second>", "<third>"],
-  "competencies": { "<competency>": { "score": <1-5>, "evidence": "<short quote or close paraphrase from the transcript>" }, ... },
-  "star": { "Situation": <1-5 or null>, "Task": <1-5 or null>, "Action": <1-5 or null>, "Result": <1-5 or null>, "Reflection": <1-5 or null> },
+  "competencies": { "<competency key>": { "score": <1-5>, "evidence": "<short quote or close paraphrase from the transcript>" }, ... },
+  "phases": { ${phaseNames.map((p) => `"${p}": <1-5 or null>`).join(", ")} },
   "covered_topics": ["<topic key the interviewer actually explored>", ...]
 }`;
 }
 
-function buildUserPrompt({ dialogue, user, type }) {
+function buildUserPrompt({ dialogue, user, rubric }) {
   const role = user?.job_role || "software engineer";
   const level = user?.experience_level || "mid";
-  return `Interview type: ${type || "behavioral"}
+  return `Interview type: ${rubric.label}
 Candidate: ${user?.name || "the candidate"} — target role: ${role}, experience level: ${level}
 Calibrate your scores to a ${level}-level ${role}.
 
@@ -101,32 +94,36 @@ async function callChatCompletion({ system, user }) {
 
 // Coerce the model's raw JSON into the exact structures the DB + report expect.
 // Anything malformed is dropped rather than trusted.
-function normalize(raw) {
+function normalize(raw, rubric) {
   const comps = raw?.competencies || {};
-  const per_competency = COMPETENCIES.map((c) => ({
-    competency: c,
-    score: clamp(comps[c]?.score, 1, 5),
-    evidence: str(comps[c]?.evidence),
-  })).filter((c) => c.score != null);
+  const per_competency = rubric.competencies
+    .map((c) => ({
+      competency: c.key,
+      score: clamp(comps[c.key]?.score, 1, 5),
+      evidence: str(comps[c.key]?.evidence),
+    }))
+    .filter((c) => c.score != null);
 
-  const starIn = raw?.star || {};
-  const star = STAR_PHASES.map(([phase]) => ({
+  const phasesIn = raw?.phases || raw?.star || {};
+  const star = rubric.phases.map(([phase]) => ({
     phase,
-    rating: clamp(starIn[phase], 1, 5),
+    rating: clamp(phasesIn[phase], 1, 5),
   }));
 
   // The model is asked for topic *keys*, but often echoes the label or a loose
   // variant ("Situation / setup", "situation setup"). Match tolerantly against
   // both keys and labels so a naming mismatch doesn't blank the timeline.
+  const labels = topicLabelMap(rubric.key);
+  const lookup = buildTopicLookup(labels);
   const coveredRaw = Array.isArray(raw?.covered_topics) ? raw.covered_topics : [];
   const covered = new Set();
   for (const item of coveredRaw) {
-    const key = matchTopicKey(item);
+    const key = lookup(item);
     if (key) covered.add(key);
   }
-  const timeline = Object.keys(TOPIC_META).map((key) => ({
+  const timeline = Object.keys(labels).map((key) => ({
     topic: key,
-    label: TOPIC_META[key],
+    label: labels[key],
     covered: covered.has(key),
   }));
 
@@ -143,20 +140,16 @@ function normalize(raw) {
   };
 }
 
-// Resolve a model-supplied topic string to a canonical TOPIC_META key, matching
-// on the key itself or its human label, ignoring case and non-alphanumerics.
-const TOPIC_LOOKUP = (() => {
+// Resolve a model-supplied topic string to a canonical topic key, matching on
+// the key itself or its human label, ignoring case and non-alphanumerics.
+function buildTopicLookup(labels) {
   const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
   const map = new Map();
-  for (const [key, label] of Object.entries(TOPIC_META)) {
+  for (const [key, label] of Object.entries(labels)) {
     map.set(norm(key), key);
     map.set(norm(label), key);
   }
-  return { norm, map };
-})();
-function matchTopicKey(item) {
-  if (item == null) return null;
-  return TOPIC_LOOKUP.map.get(TOPIC_LOOKUP.norm(item)) || null;
+  return (item) => (item == null ? null : map.get(norm(item)) || null);
 }
 
 function clamp(n, min, max) {
