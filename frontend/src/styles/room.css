@@ -1,0 +1,494 @@
+/* Interview room: dark, Meet/Zoom-style call stage. */
+.room {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--stage-bg);
+  color: var(--stage-text);
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────────── */
+.room-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+}
+
+.room-top .left,
+.room-top .right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+.room-top .right {
+  justify-content: flex-end;
+}
+
+.room-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px;
+  border: 1px solid var(--stage-border);
+  border-radius: 999px;
+  background: var(--stage-surface);
+  color: var(--stage-text-2);
+  font-size: 12.5px;
+  font-weight: 550;
+}
+
+.rec-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  animation: rec-blink 1.6s ease infinite;
+}
+@keyframes rec-blink {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.room-timer {
+  font-variant-numeric: tabular-nums;
+  color: var(--stage-text);
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────────── */
+.room-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  padding: 12px 20px;
+}
+
+/* The interviewer "tile": audio-reactive voice blob. --level is set from the
+   real TTS output level every animation frame. */
+.blob {
+  position: relative;
+  width: min(240px, 42vw);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.blob .ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, rgb(99 102 241 / 0.5), rgb(124 58 237 / 0.18) 60%, transparent 72%);
+  filter: blur(2px);
+  transform: scale(calc(1 + var(--level, 0) * 0.5));
+  transition: transform 0.09s ease-out;
+}
+
+.blob .ring.r2 {
+  inset: 7%;
+  background: radial-gradient(circle at 60% 65%, rgb(139 92 246 / 0.45), rgb(79 70 229 / 0.2) 58%, transparent 74%);
+  transform: scale(calc(1 + var(--level, 0) * 0.32));
+  transition: transform 0.13s ease-out;
+}
+
+.blob .core {
+  position: relative;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 46% 54% 52% 48% / 52% 46% 54% 48%;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6 55%, #6d28d9);
+  box-shadow:
+    0 0 60px rgb(99 102 241 / 0.35),
+    inset 0 -14px 30px rgb(0 0 0 / 0.25),
+    inset 0 10px 24px rgb(255 255 255 / 0.18);
+  transform: scale(calc(1 + var(--level, 0) * 0.22));
+  transition: transform 0.08s ease-out;
+  animation: blob-morph 9s ease-in-out infinite alternate;
+}
+
+.room.listening .blob .core {
+  animation-duration: 13s;
+}
+
+@keyframes blob-morph {
+  0% {
+    border-radius: 46% 54% 52% 48% / 52% 46% 54% 48%;
+  }
+  33% {
+    border-radius: 54% 46% 44% 56% / 48% 56% 44% 52%;
+  }
+  66% {
+    border-radius: 48% 52% 56% 44% / 56% 44% 52% 48%;
+  }
+  100% {
+    border-radius: 52% 48% 46% 54% / 46% 54% 48% 52%;
+  }
+}
+
+/* Idle/connecting shimmer instead of level-driven motion */
+.room.connecting .blob .core {
+  animation: blob-morph 9s ease-in-out infinite alternate, blob-breathe 2.2s ease-in-out infinite;
+}
+@keyframes blob-breathe {
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.stage-id {
+  text-align: center;
+}
+.stage-id .name {
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.stage-id .status {
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--stage-text-2);
+  min-height: 20px;
+}
+
+/* "You're speaking" chip under the blob */
+.speaking-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgb(34 197 94 / 0.12);
+  color: #4ade80;
+  font-size: 12.5px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.speaking-chip.on {
+  opacity: 1;
+}
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.eq i {
+  width: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  animation: eq-bounce 0.9s ease-in-out infinite;
+}
+.eq i:nth-child(1) {
+  height: 55%;
+}
+.eq i:nth-child(2) {
+  height: 100%;
+  animation-delay: 0.15s;
+}
+.eq i:nth-child(3) {
+  height: 70%;
+  animation-delay: 0.3s;
+}
+@keyframes eq-bounce {
+  50% {
+    transform: scaleY(0.45);
+  }
+}
+
+/* ── Captions (Meet-style) ─────────────────────────────────────────────── */
+.captions {
+  min-height: 84px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 20px;
+}
+
+.caption-bubble {
+  max-width: 720px;
+  width: fit-content;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgb(20 23 31 / 0.88);
+  border: 1px solid var(--stage-border);
+  backdrop-filter: blur(8px);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--stage-text);
+  animation: fade-up 0.25s ease both;
+}
+
+.caption-bubble .speaker {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--stage-text-2);
+}
+.caption-bubble.user .speaker {
+  color: #4ade80;
+}
+.caption-bubble.assistant .speaker {
+  color: #a5b4fc;
+}
+
+.caption-text .tok {
+  animation: fade-up 0.18s ease both;
+  display: inline;
+}
+
+/* ── Control bar ───────────────────────────────────────────────────────── */
+.room-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 18px 20px 26px;
+}
+
+.ctl {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 1px solid var(--stage-border);
+  background: var(--stage-surface-2);
+  color: var(--stage-text);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.08s ease, border-color 0.15s ease;
+}
+.ctl:hover {
+  background: #232837;
+}
+.ctl:active {
+  transform: scale(0.94);
+}
+.ctl:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.ctl.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.ctl.muted {
+  background: #fff;
+  border-color: #fff;
+  color: #0b0d12;
+}
+.ctl.end {
+  width: 64px;
+  background: #dc2626;
+  border-color: #dc2626;
+  color: #fff;
+}
+.ctl.end:hover {
+  background: #b91c1c;
+}
+
+.ctl-label {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--stage-text-2);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+.ctl-wrap {
+  position: relative;
+}
+.ctl-wrap:hover .ctl-label {
+  opacity: 1;
+}
+
+/* ── Transcript side panel ─────────────────────────────────────────────── */
+.transcript-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  width: min(380px, calc(100vw - 24px));
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-l);
+  background: rgb(17 20 27 / 0.97);
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow-l);
+  transform: translateX(calc(100% + 24px));
+  transition: transform 0.25s ease;
+  z-index: 5;
+}
+.transcript-panel.open {
+  transform: translateX(0);
+}
+
+.transcript-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--stage-border);
+  font-size: 14px;
+  font-weight: 650;
+}
+.transcript-head button {
+  border: none;
+  background: none;
+  color: var(--stage-text-2);
+  font-size: 18px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.transcript-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.t-line .t-who {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--stage-text-2);
+}
+.t-line.user .t-who {
+  color: #4ade80;
+}
+.t-line.assistant .t-who {
+  color: #a5b4fc;
+}
+.t-line .t-text {
+  font-size: 13.5px;
+  color: var(--stage-text);
+  line-height: 1.5;
+}
+
+/* ── Lobby (pre-join) ──────────────────────────────────────────────────── */
+.lobby {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(700px 400px at 50% -120px, rgb(79 70 229 / 0.18), transparent),
+    var(--stage-bg);
+  color: var(--stage-text);
+}
+
+.lobby-card {
+  width: 100%;
+  max-width: 460px;
+  padding: 32px;
+  border: 1px solid var(--stage-border);
+  border-radius: 20px;
+  background: var(--stage-surface);
+  box-shadow: var(--shadow-l);
+  text-align: center;
+}
+
+.lobby-blob {
+  width: 120px;
+  margin: 0 auto 18px;
+}
+
+.lobby-card h1 {
+  font-size: 21px;
+}
+.lobby-card .with {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--stage-text-2);
+}
+
+.lobby-tips {
+  margin: 22px 0 6px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.lobby-tips li {
+  display: flex;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--stage-text-2);
+}
+.lobby-tips li::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-top: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.lobby-card .btn.primary {
+  margin-top: 22px;
+}
+.lobby-card .btn.ghost {
+  margin-top: 10px;
+  color: var(--stage-text-2);
+}
+.lobby-card .btn.ghost:hover {
+  background: rgb(255 255 255 / 0.06);
+  color: var(--stage-text);
+}
+
+.lobby-error {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border: 1px solid rgb(239 68 68 / 0.35);
+  border-radius: var(--radius-s);
+  background: rgb(239 68 68 / 0.08);
+  color: #fca5a5;
+  font-size: 13.5px;
+  text-align: left;
+}
+
+/* Ended overlay */
+.room-ended {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(11 13 18 / 0.72);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+}
+.room-ended .panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  color: var(--stage-text);
+  font-size: 15px;
+}
+.room-ended .spinner {
+  border-color: var(--stage-border);
+  border-top-color: var(--accent);
+}

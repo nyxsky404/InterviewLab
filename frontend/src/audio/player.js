@@ -1,5 +1,7 @@
 // Streaming playback of linear16 PCM (mono, 24 kHz) from the agent. Chunks are
-// scheduled back-to-back for gapless audio; interrupt() supports barge-in.
+// scheduled back-to-back for gapless audio; interrupt() supports barge-in. All
+// sources route through an analyser so the UI can drive the voice blob from
+// the agent's actual output level.
 export class PcmPlayer {
   constructor(sampleRate = 24000) {
     this.sampleRate = sampleRate;
@@ -12,6 +14,10 @@ export class PcmPlayer {
     if (!this.ctx) {
       this.ctx = new AudioContext({ sampleRate: this.sampleRate });
       this.nextTime = 0;
+      this.analyser = this.ctx.createAnalyser();
+      this.analyser.fftSize = 512;
+      this.levelBuf = new Uint8Array(this.analyser.frequencyBinCount);
+      this.analyser.connect(this.ctx.destination);
     }
     if (this.ctx.state === "suspended") this.ctx.resume();
   }
@@ -28,7 +34,7 @@ export class PcmPlayer {
 
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
-    src.connect(this.ctx.destination);
+    src.connect(this.analyser);
 
     const start = Math.max(this.ctx.currentTime + 0.02, this.nextTime);
     src.start(start);
@@ -36,6 +42,18 @@ export class PcmPlayer {
 
     this.sources.add(src);
     src.onended = () => this.sources.delete(src);
+  }
+
+  // RMS output level, 0..~1 — drives the agent blob's animation.
+  getLevel() {
+    if (!this.analyser) return 0;
+    this.analyser.getByteTimeDomainData(this.levelBuf);
+    let sum = 0;
+    for (let i = 0; i < this.levelBuf.length; i++) {
+      const v = (this.levelBuf[i] - 128) / 128;
+      sum += v * v;
+    }
+    return Math.sqrt(sum / this.levelBuf.length);
   }
 
   // Barge-in: stop and drop anything queued so the agent cuts off immediately.
