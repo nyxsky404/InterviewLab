@@ -2,12 +2,14 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import Brand from "../components/Brand.jsx";
+import "../styles/auth.css";
 
 const LEVELS = [
-  { value: "junior", label: "Junior (0–2 yrs)" },
-  { value: "mid", label: "Mid (2–5 yrs)" },
-  { value: "senior", label: "Senior (5–8 yrs)" },
-  { value: "staff", label: "Staff+ (8+ yrs)" },
+  { value: "junior", label: "Junior" },
+  { value: "mid", label: "Mid" },
+  { value: "senior", label: "Senior" },
+  { value: "staff", label: "Staff+" },
 ];
 
 export default function Signup() {
@@ -42,51 +44,79 @@ export default function Signup() {
 
   return (
     <div className="auth-wrap">
-      <form className="card auth-card" onSubmit={submit}>
+      <Brand />
+      <div className="card auth-card fade-up">
         <h1>Create your account</h1>
-        <p className="muted">Set up a quick profile so the interviewer can tailor questions.</p>
+        <p className="lede">A quick profile lets the interviewer tailor its questions to you.</p>
 
-        <label>Full name</label>
-        <input value={form.name} onChange={set("name")} placeholder="Casey Candidate" required />
+        <form onSubmit={submit}>
+          <label htmlFor="name">Full name</label>
+          <input
+            id="name"
+            value={form.name}
+            onChange={set("name")}
+            placeholder="Casey Candidate"
+            autoComplete="name"
+            required
+          />
 
-        <label>Target job role</label>
-        <input
-          value={form.jobRole}
-          onChange={set("jobRole")}
-          placeholder="Backend Engineer"
-          required
-        />
+          <label htmlFor="jobRole">Target job role</label>
+          <input
+            id="jobRole"
+            value={form.jobRole}
+            onChange={set("jobRole")}
+            placeholder="Backend Engineer"
+            required
+          />
 
-        <label>Experience level</label>
-        <select value={form.experienceLevel} onChange={set("experienceLevel")}>
-          {LEVELS.map((l) => (
-            <option key={l.value} value={l.value}>
-              {l.label}
-            </option>
-          ))}
-        </select>
+          <label>Experience level</label>
+          <div className="segmented" role="radiogroup" aria-label="Experience level">
+            {LEVELS.map((l) => (
+              <button
+                key={l.value}
+                type="button"
+                className={form.experienceLevel === l.value ? "active" : ""}
+                onClick={() => setForm({ ...form, experienceLevel: l.value })}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
 
-        <label>Email</label>
-        <input type="email" value={form.email} onChange={set("email")} required />
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            value={form.email}
+            onChange={set("email")}
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
 
-        <label>Password</label>
-        <input
-          type="password"
-          value={form.password}
-          onChange={set("password")}
-          placeholder="At least 6 characters"
-          required
-        />
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            value={form.password}
+            onChange={set("password")}
+            placeholder="At least 6 characters"
+            autoComplete="new-password"
+            required
+          />
 
-        {error && <div className="error">{error}</div>}
+          {error && <div className="error-banner">{error}</div>}
 
-        <button className="btn primary" disabled={busy}>
-          {busy ? "Creating…" : "Sign up"}
-        </button>
-        <p className="muted center">
+          <button className="btn primary big block" disabled={busy}>
+            {busy ? "Creating account…" : "Create account"}
+          </button>
+        </form>
+
+        <p className="auth-switch">
           Already have an account? <Link to="/login">Log in</Link>
         </p>
-      </form>
+      </div>
+      <p className="auth-foot">Real-time voice interviews with an adaptive AI interviewer.</p>
     </div>
   );
 }

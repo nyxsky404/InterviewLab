@@ -8,7 +8,13 @@ import Report from "./pages/Report.jsx";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div className="center muted">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="page-center">
+        <div className="spinner" aria-label="Loading" />
+      </div>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }

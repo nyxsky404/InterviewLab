@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import Brand from "../components/Brand.jsx";
+import "../styles/auth.css";
 
 export default function Login() {
   const { onAuthed } = useAuth();
@@ -29,25 +31,45 @@ export default function Login() {
 
   return (
     <div className="auth-wrap">
-      <form className="card auth-card" onSubmit={submit}>
+      <Brand />
+      <div className="card auth-card fade-up">
         <h1>Welcome back</h1>
-        <p className="muted">Log in to practice a mock interview.</p>
+        <p className="lede">Log in to practice your next interview.</p>
 
-        <label>Email</label>
-        <input type="email" value={form.email} onChange={set("email")} required />
+        <form onSubmit={submit}>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            value={form.email}
+            onChange={set("email")}
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
 
-        <label>Password</label>
-        <input type="password" value={form.password} onChange={set("password")} required />
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            value={form.password}
+            onChange={set("password")}
+            autoComplete="current-password"
+            required
+          />
 
-        {error && <div className="error">{error}</div>}
+          {error && <div className="error-banner">{error}</div>}
 
-        <button className="btn primary" disabled={busy}>
-          {busy ? "Logging in…" : "Log in"}
-        </button>
-        <p className="muted center">
+          <button className="btn primary big block" disabled={busy}>
+            {busy ? "Logging in…" : "Log in"}
+          </button>
+        </form>
+
+        <p className="auth-switch">
           New here? <Link to="/signup">Create an account</Link>
         </p>
-      </form>
+      </div>
+      <p className="auth-foot">Real-time voice interviews with an adaptive AI interviewer.</p>
     </div>
   );
 }
