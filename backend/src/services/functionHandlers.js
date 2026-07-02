@@ -1,4 +1,4 @@
-import { recordAssessment } from "../services/evaluation.js";
+import { recordAssessment } from "./reportService.js";
 
 // Handle a FunctionCallRequest emitted by the Deepgram-managed LLM.
 // Returns a small JSON-serializable payload sent back as FunctionCallResponse
@@ -10,7 +10,7 @@ export async function handleFunctionCall(interviewId, name, args) {
         await recordAssessment(interviewId, args);
         return { ok: true };
 
-      // submit_evaluation is now purely a "the interview is over" signal —
+      // submit_evaluation is purely a "the interview is over" signal —
       // voiceProxy uses it to trigger the graceful close. The actual report is
       // written post-call from the transcript (see finalizeInterview), so there
       // is nothing to persist here.

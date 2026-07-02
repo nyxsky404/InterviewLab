@@ -6,7 +6,7 @@ import { pool } from "./pool.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function migrate() {
-  const sql = fs.readFileSync(path.resolve(__dirname, "migrate.sql"), "utf8");
+  const sql = fs.readFileSync(path.resolve(__dirname, "schema.sql"), "utf8");
   console.log("[migrate] applying schema...");
   await pool.query(sql);
   console.log("[migrate] done.");

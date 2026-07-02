@@ -1,6 +1,6 @@
-import { config } from "../config.js";
+import { config } from "../config/index.js";
 import { COMPETENCIES, TOPICS } from "../prompts/interviewer.js";
-import { TOPIC_META, STAR_PHASES } from "./evaluation.js";
+import { TOPIC_META, STAR_PHASES } from "./reportService.js";
 
 // Post-call report generation. Reads the FULL transcript once the interview
 // ends and returns the structured feedback. The LLM supplies judgments only —

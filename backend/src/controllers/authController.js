@@ -1,10 +1,6 @@
-import { Router } from "express";
 import bcrypt from "bcryptjs";
-import { query } from "../db/pool.js";
-import { signToken } from "../lib/jwt.js";
-import { requireAuth } from "../middleware/auth.js";
-
-export const authRouter = Router();
+import { createUser, findUserByEmail, findUserById } from "../models/userModel.js";
+import { signToken } from "../utils/jwt.js";
 
 const EXPERIENCE_LEVELS = ["junior", "mid", "senior", "staff"];
 
@@ -18,7 +14,7 @@ function publicUser(row) {
   };
 }
 
-authRouter.post("/signup", async (req, res) => {
+export async function signup(req, res) {
   const { email, password, name, jobRole, experienceLevel } = req.body || {};
 
   if (!email || !password || !name || !jobRole || !experienceLevel) {
@@ -36,14 +32,14 @@ authRouter.post("/signup", async (req, res) => {
   }
 
   try {
-    const hash = await bcrypt.hash(password, 10);
-    const { rows } = await query(
-      `INSERT INTO users (email, password_hash, name, job_role, experience_level)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, email, name, job_role, experience_level`,
-      [email.toLowerCase().trim(), hash, name.trim(), jobRole.trim(), experienceLevel]
-    );
-    const user = rows[0];
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await createUser({
+      email: email.toLowerCase().trim(),
+      passwordHash,
+      name: name.trim(),
+      jobRole: jobRole.trim(),
+      experienceLevel,
+    });
     return res.status(201).json({ token: signToken(user), user: publicUser(user) });
   } catch (err) {
     if (err.code === "23505") {
@@ -52,18 +48,15 @@ authRouter.post("/signup", async (req, res) => {
     console.error("[signup]", err);
     return res.status(500).json({ error: "Signup failed" });
   }
-});
+}
 
-authRouter.post("/login", async (req, res) => {
+export async function login(req, res) {
   const { email, password } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: "email and password are required" });
   }
   try {
-    const { rows } = await query(`SELECT * FROM users WHERE email = $1`, [
-      email.toLowerCase().trim(),
-    ]);
-    const user = rows[0];
+    const user = await findUserByEmail(email.toLowerCase().trim());
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
@@ -72,11 +65,11 @@ authRouter.post("/login", async (req, res) => {
     console.error("[login]", err);
     return res.status(500).json({ error: "Login failed" });
   }
-});
+}
 
 // Current user (used by the client to restore session on refresh).
-authRouter.get("/me", requireAuth, async (req, res) => {
-  const { rows } = await query(`SELECT * FROM users WHERE id = $1`, [req.userId]);
-  if (!rows[0]) return res.status(404).json({ error: "User not found" });
-  return res.json({ user: publicUser(rows[0]) });
-});
+export async function me(req, res) {
+  const user = await findUserById(req.userId);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  return res.json({ user: publicUser(user) });
+}

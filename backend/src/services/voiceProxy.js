@@ -1,7 +1,8 @@
 import WebSocket from "ws";
-import { config } from "../config.js";
-import { query } from "../db/pool.js";
-import { buildInstructions, buildGreeting, FUNCTION_DEFS } from "../prompts/interviewer.js";
+import { config } from "../config/index.js";
+import { addTurn, maxTurnSeq } from "../models/turnModel.js";
+import { setDeepgramRequestId } from "../models/interviewModel.js";
+import { buildInstructions, buildGreeting, buildFunctionDefs } from "../prompts/interviewer.js";
 import { handleFunctionCall, parseArguments } from "./functionHandlers.js";
 
 const DEEPGRAM_AGENT_URL = "wss://agent.deepgram.com/v1/agent/converse";
@@ -67,7 +68,7 @@ export function attachVoiceProxy(client, ctx) {
   let completeSent = false; // guard so we only end once
   const mediaBuffer = []; // mic audio captured before Deepgram is ready
 
-  seedSeq(interviewId).then((n) => {
+  maxTurnSeq(interviewId).then((n) => {
     seq = n;
   });
 
@@ -115,10 +116,7 @@ export function attachVoiceProxy(client, ctx) {
     switch (msg.type) {
       case "Welcome":
         if (msg.request_id) {
-          await query(`UPDATE interviews SET deepgram_request_id = $1 WHERE id = $2`, [
-            msg.request_id,
-            interviewId,
-          ]);
+          await setDeepgramRequestId(interviewId, msg.request_id);
         }
         break;
 
@@ -147,10 +145,7 @@ export function attachVoiceProxy(client, ctx) {
           injectEndCall();
         }
         seq += 1;
-        await query(
-          `INSERT INTO turns (interview_id, seq, role, content) VALUES ($1, $2, $3, $4)`,
-          [interviewId, seq, msg.role, msg.content]
-        );
+        await addTurn(interviewId, seq, msg.role, msg.content);
         sendJson(client, { type: "transcript", role: msg.role, content: msg.content });
         break;
       }
@@ -231,7 +226,7 @@ export function attachVoiceProxy(client, ctx) {
     for (const fn of functions) {
       const args = parseArguments(fn.arguments);
       console.log(`[voiceProxy] function call: ${fn.name} (client_side=${fn.client_side})`);
-      const result = await handleFunctionCall(interviewId, fn.name, args);
+      const result = await handleFunctionCall(interviewId, fn.name, args, { type });
       // Our functions are defined without an endpoint, so Deepgram marks them
       // client_side: true and expects US to send the FunctionCallResponse.
       // (client_side: false means Deepgram executed it server-side and replies
@@ -444,7 +439,7 @@ function buildSettings({ type, user }) {
       think: {
         provider: { type: llm.type, model: llm.model, temperature: llm.temperature },
         prompt: buildInstructions({ type, user }),
-        functions: FUNCTION_DEFS,
+        functions: buildFunctionDefs(type),
       },
       speak: {
         provider: { type: "deepgram", model: voice.speakModel },
@@ -460,12 +455,4 @@ function sendJson(ws, obj) {
 
 function sendBinary(ws, data) {
   if (ws.readyState === WebSocket.OPEN) ws.send(data, { binary: true });
-}
-
-async function seedSeq(interviewId) {
-  const { rows } = await query(
-    `SELECT COALESCE(MAX(seq), 0) AS max FROM turns WHERE interview_id = $1`,
-    [interviewId]
-  );
-  return Number(rows[0].max);
 }

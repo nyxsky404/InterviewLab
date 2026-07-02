@@ -1,24 +1,13 @@
 import http from "node:http";
 import { URL } from "node:url";
-import express from "express";
-import cors from "cors";
 import { WebSocketServer } from "ws";
-import { config } from "./config.js";
-import { verifyToken } from "./lib/jwt.js";
-import { query } from "./db/pool.js";
-import { authRouter } from "./routes/auth.js";
-import { interviewsRouter } from "./routes/interviews.js";
-import { attachVoiceProxy } from "./deepgram/voiceProxy.js";
+import { createApp } from "./app.js";
+import { config } from "./config/index.js";
+import { verifyToken } from "./utils/jwt.js";
+import { findVoiceSession } from "./models/interviewModel.js";
+import { attachVoiceProxy } from "./services/voiceProxy.js";
 
-const app = express();
-app.use(cors({ origin: config.clientOrigin }));
-app.use(express.json());
-
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
-app.use("/api/auth", authRouter);
-app.use("/api/interviews", interviewsRouter);
-
-const server = http.createServer(app);
+const server = http.createServer(createApp());
 
 // Voice WebSocket: /api/interviews/:id/voice?token=<jwt>
 // We authenticate on the HTTP upgrade before the socket is accepted.
@@ -41,24 +30,18 @@ server.on("upgrade", async (req, socket, head) => {
       return destroy(socket, 401);
     }
 
-    // Ownership check: the interview must belong to this user and be open.
-    const { rows } = await query(
-      `SELECT i.id, i.type, i.status, u.name, u.job_role, u.experience_level
-         FROM interviews i JOIN users u ON u.id = i.user_id
-        WHERE i.id = $1 AND i.user_id = $2`,
-      [interviewId, userId]
-    );
-    const row = rows[0];
-    if (!row) return destroy(socket, 403);
+    // Ownership check: the interview must belong to this user.
+    const session = await findVoiceSession(interviewId, userId);
+    if (!session) return destroy(socket, 403);
 
     wss.handleUpgrade(req, socket, head, (client) => {
       attachVoiceProxy(client, {
         interviewId,
-        type: row.type,
+        type: session.type,
         user: {
-          name: row.name,
-          jobRole: row.job_role,
-          experienceLevel: row.experience_level,
+          name: session.name,
+          jobRole: session.job_role,
+          experienceLevel: session.experience_level,
         },
       });
     });

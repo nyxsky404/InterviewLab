@@ -1,38 +1,46 @@
-import { query } from "../db/pool.js";
-import { config } from "../config.js";
+import { config } from "../config/index.js";
+import {
+  addAssessment,
+  averageByCompetency,
+  listNotedAssessments,
+} from "../models/assessmentModel.js";
+import { listTurns } from "../models/turnModel.js";
+import { getEvaluationContext } from "../models/interviewModel.js";
+import { findFeedback, upsertFeedback, insertFeedbackIfAbsent } from "../models/feedbackModel.js";
 
-// Aggregate the live per-answer assessments into an average score (1–5) per
-// competency. This is the structured signal the LLM logged during the session.
-export async function computePerCompetency(interviewId) {
-  const { rows } = await query(
-    `SELECT competency,
-            ROUND(AVG(score)::numeric, 1) AS avg_score,
-            COUNT(*)::int AS samples
-       FROM assessments
-      WHERE interview_id = $1
-      GROUP BY competency
-      ORDER BY competency`,
-    [interviewId]
-  );
-  return rows.map((r) => ({
-    competency: r.competency,
-    score: Number(r.avg_score),
-    samples: r.samples,
-  }));
-}
+// The canonical story beats, in the order an interview tends to work through
+// them, with the label shown on the timeline. Mirrors TOPICS in the prompt.
+export const TOPIC_META = {
+  situation: "Situation / setup",
+  problem: "The core problem",
+  team: "Team & their role",
+  ownership: "Personal ownership",
+  alternatives: "Alternatives weighed",
+  tradeoff: "The key tradeoff",
+  validation: "Results & validation",
+  mistake: "Mistakes & surprises",
+  conflict: "Conflict / disagreement",
+  reflection: "Reflection & hindsight",
+};
 
-// All raw per-answer judgments the LLM logged live. These carry the concrete
-// evidence (the one-line note per answer) that turns a score into something the
-// candidate can actually learn from, so the report surfaces them directly.
-export async function getAssessments(interviewId) {
-  const { rows } = await query(
-    `SELECT competency, topic, score, note, created_at
-       FROM assessments
-      WHERE interview_id = $1
-      ORDER BY created_at`,
-    [interviewId]
-  );
-  return rows;
+// How each beat rolls up into a STAR phase (Reflection kept separate — it's the
+// dimension candidates most often skip and the one worth calling out on its own).
+export const STAR_PHASES = [
+  ["Situation", ["situation", "problem"]],
+  ["Task", ["team"]],
+  ["Action", ["ownership", "alternatives", "tradeoff"]],
+  ["Result", ["validation"]],
+  ["Reflection", ["mistake", "conflict", "reflection"]],
+];
+
+// Insert one live rubric judgment (called from the record_assessment tool).
+export async function recordAssessment(interviewId, { competency, topic, score, note }) {
+  await addAssessment(interviewId, {
+    competency,
+    topic: TOPIC_META[topic] ? topic : null,
+    score: Math.round(score),
+    note: note || null,
+  });
 }
 
 // Real answer-quality metrics derived from the transcript + logged assessments.
@@ -63,39 +71,6 @@ export function computeMetrics(turns, assessments) {
 function countWords(s) {
   return (s || "").trim().split(/\s+/).filter(Boolean).length;
 }
-
-// Insert one live rubric judgment (called from the record_assessment tool).
-export async function recordAssessment(interviewId, { competency, topic, score, note }) {
-  await query(
-    `INSERT INTO assessments (interview_id, competency, topic, score, note) VALUES ($1, $2, $3, $4, $5)`,
-    [interviewId, competency, TOPIC_META[topic] ? topic : null, Math.round(score), note || null]
-  );
-}
-
-// The canonical story beats, in the order an interview tends to work through
-// them, with the label shown on the timeline. Mirrors TOPICS in the prompt.
-export const TOPIC_META = {
-  situation: "Situation / setup",
-  problem: "The core problem",
-  team: "Team & their role",
-  ownership: "Personal ownership",
-  alternatives: "Alternatives weighed",
-  tradeoff: "The key tradeoff",
-  validation: "Results & validation",
-  mistake: "Mistakes & surprises",
-  conflict: "Conflict / disagreement",
-  reflection: "Reflection & hindsight",
-};
-
-// How each beat rolls up into a STAR phase (Reflection kept separate — it's the
-// dimension candidates most often skip and the one worth calling out on its own).
-export const STAR_PHASES = [
-  ["Situation", ["situation", "problem"]],
-  ["Task", ["team"]],
-  ["Action", ["ownership", "alternatives", "tradeoff"]],
-  ["Result", ["validation"]],
-  ["Reflection", ["mistake", "conflict", "reflection"]],
-];
 
 // Which story beats the interview actually reached, in coverage order, plus the
 // ones it never got to — this is the honest "what did the interviewer explore"
@@ -134,8 +109,8 @@ export function computeStarRatings(assessments) {
 // written (e.g. a prior /finish call), return it; otherwise generate one from the
 // transcript, falling back to the per-answer assessments so it's never empty.
 export async function finalizeInterview(interviewId) {
-  const existing = await query(`SELECT * FROM feedback WHERE interview_id = $1`, [interviewId]);
-  if (existing.rows[0]) return existing.rows[0];
+  const existing = await findFeedback(interviewId);
+  if (existing) return existing;
 
   // Primary path: an external LLM reads the full transcript and writes the whole
   // report. Best quality + no dependency on in-session tool calls. If it's not
@@ -149,7 +124,7 @@ export async function finalizeInterview(interviewId) {
     }
   }
 
-  const perCompetency = await computePerCompetency(interviewId);
+  const perCompetency = await averageByCompetency(interviewId);
   const overall = perCompetency.length
     ? Math.round(
         (perCompetency.reduce((sum, c) => sum + c.score, 0) / perCompetency.length / 5) * 100
@@ -164,86 +139,38 @@ export async function finalizeInterview(interviewId) {
     overall
   );
 
-  const { rows } = await query(
-    `INSERT INTO feedback (interview_id, overall_score, summary, verdict, top_priorities, per_competency, strengths, growth_areas)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     ON CONFLICT (interview_id) DO NOTHING
-     RETURNING *`,
-    [
-      interviewId,
-      overall,
-      summary,
-      deriveVerdict(overall, perCompetency),
-      JSON.stringify(derivePriorities(perCompetency)),
-      JSON.stringify(perCompetency),
-      JSON.stringify(strengths),
-      JSON.stringify(growthAreas),
-    ]
-  );
-  if (rows[0]) return rows[0];
-  const reread = await query(`SELECT * FROM feedback WHERE interview_id = $1`, [interviewId]);
-  return reread.rows[0] || null;
+  return insertFeedbackIfAbsent(interviewId, {
+    overall_score: overall,
+    summary,
+    verdict: deriveVerdict(overall, perCompetency),
+    top_priorities: derivePriorities(perCompetency),
+    per_competency: perCompetency,
+    strengths,
+    growth_areas: growthAreas,
+  });
 }
 
 // Run the external transcript evaluator and persist the full report. Returns
 // null (so the caller can fall back) if there's nothing to evaluate.
 async function evaluateAndSave(interviewId) {
-  const [{ rows: turns }, { rows: userRows }, { rows: itvRows }] = await Promise.all([
-    query(`SELECT role, content FROM turns WHERE interview_id = $1 ORDER BY seq`, [interviewId]),
-    query(
-      `SELECT u.name, u.job_role, u.experience_level
-         FROM interviews i JOIN users u ON u.id = i.user_id
-        WHERE i.id = $1`,
-      [interviewId]
-    ),
-    query(`SELECT type FROM interviews WHERE id = $1`, [interviewId]),
+  const [turns, ctx] = await Promise.all([
+    listTurns(interviewId),
+    getEvaluationContext(interviewId),
   ]);
   if (!turns.length) return null;
 
   // Dynamic import avoids a static circular dependency (the evaluator imports
   // the shared TOPIC_META / STAR_PHASES shapes from this module).
-  const { evaluateTranscript } = await import("./groqEvaluation.js");
+  const { evaluateTranscript } = await import("./transcriptEvaluator.js");
   const report = await evaluateTranscript({
     turns,
-    user: userRows[0],
-    type: itvRows[0]?.type,
+    user: ctx,
+    type: ctx?.type,
   });
-  return persistFeedback(interviewId, report);
-}
-
-// Full upsert used by the transcript evaluator — writes every report column,
-// including the LLM-authored per-competency evidence, STAR ratings, and timeline.
-async function persistFeedback(interviewId, f) {
-  const { rows } = await query(
-    `INSERT INTO feedback
-       (interview_id, overall_score, summary, verdict, top_priorities,
-        per_competency, strengths, growth_areas, star, timeline)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     ON CONFLICT (interview_id) DO UPDATE SET
-       overall_score = EXCLUDED.overall_score,
-       summary       = EXCLUDED.summary,
-       verdict       = EXCLUDED.verdict,
-       top_priorities= EXCLUDED.top_priorities,
-       per_competency= EXCLUDED.per_competency,
-       strengths     = EXCLUDED.strengths,
-       growth_areas  = EXCLUDED.growth_areas,
-       star          = EXCLUDED.star,
-       timeline      = EXCLUDED.timeline
-     RETURNING *`,
-    [
-      interviewId,
-      clampInt(f.overall_score, 0, 100),
-      f.summary || "",
-      f.verdict || "",
-      JSON.stringify(f.top_priorities || []),
-      JSON.stringify(f.per_competency || []),
-      JSON.stringify(f.strengths || []),
-      JSON.stringify(f.growth_areas || []),
-      JSON.stringify(f.star || []),
-      JSON.stringify(f.timeline || []),
-    ]
-  );
-  return rows[0];
+  return upsertFeedback(interviewId, {
+    ...report,
+    overall_score: clampInt(report.overall_score, 0, 100),
+  });
 }
 
 // Turn the live per-answer assessments into a concrete summary + strengths +
@@ -257,12 +184,7 @@ async function synthesizeFromAssessments(interviewId, perCompetency, overall) {
     };
   }
 
-  const { rows } = await query(
-    `SELECT competency, score, note FROM assessments
-      WHERE interview_id = $1 AND note IS NOT NULL AND note <> ''
-      ORDER BY score DESC`,
-    [interviewId]
-  );
+  const rows = await listNotedAssessments(interviewId);
 
   // Highest-scoring notes become strengths; lowest-scoring become growth areas.
   const strengths = rows

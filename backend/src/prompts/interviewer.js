@@ -153,3 +153,8 @@ export const FUNCTION_DEFS = [
     },
   },
 ];
+
+// Wrapped in a builder so the enums can become type-specific later.
+export function buildFunctionDefs() {
+  return FUNCTION_DEFS;
+}

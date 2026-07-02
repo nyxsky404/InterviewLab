@@ -1,4 +1,4 @@
-import { verifyToken } from "../lib/jwt.js";
+import { verifyToken } from "../utils/jwt.js";
 
 // Express middleware: requires a valid `Authorization: Bearer <jwt>` header.
 export function requireAuth(req, res, next) {
