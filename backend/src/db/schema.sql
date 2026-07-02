@@ -68,3 +68,5 @@ ALTER TABLE feedback ADD COLUMN IF NOT EXISTS top_priorities JSONB NOT NULL DEFA
 -- STAR ratings + interview timeline, written by the post-call evaluator.
 ALTER TABLE feedback ADD COLUMN IF NOT EXISTS star JSONB NOT NULL DEFAULT '[]'::jsonb;
 ALTER TABLE feedback ADD COLUMN IF NOT EXISTS timeline JSONB NOT NULL DEFAULT '[]'::jsonb;
+-- Per-question review written by the post-call evaluator.
+ALTER TABLE feedback ADD COLUMN IF NOT EXISTS exchanges JSONB NOT NULL DEFAULT '[]'::jsonb;

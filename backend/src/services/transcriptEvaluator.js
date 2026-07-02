@@ -20,9 +20,86 @@ export async function evaluateTranscript({ turns, user, type }) {
   const raw = await callChatCompletion({
     system: buildSystemPrompt(rubric),
     user: buildUserPrompt({ dialogue, user, rubric }),
+    schema: buildReportSchema(rubric),
   });
 
   return normalize(raw, rubric);
+}
+
+// Strict JSON schema built from the type's rubric, so the model literally
+// cannot return a malformed report or invent competency/topic keys.
+function buildReportSchema(rubric) {
+  const compKeys = rubric.competencies.map((c) => c.key);
+  const phaseNames = rubric.phases.map(([name]) => name);
+  const scoreOrNull = { type: ["integer", "null"], minimum: 1, maximum: 5 };
+  return {
+    type: "object",
+    properties: {
+      overall_score: { type: "integer", minimum: 0, maximum: 100 },
+      verdict: { type: "string" },
+      summary: { type: "string" },
+      strengths: { type: "array", items: { type: "string" } },
+      growth_areas: { type: "array", items: { type: "string" } },
+      top_priorities: { type: "array", items: { type: "string" } },
+      competencies: {
+        type: "object",
+        properties: Object.fromEntries(
+          compKeys.map((k) => [
+            k,
+            {
+              type: "object",
+              properties: {
+                score: { type: "integer", minimum: 1, maximum: 5 },
+                evidence: { type: "string" },
+              },
+              required: ["score", "evidence"],
+              additionalProperties: false,
+            },
+          ])
+        ),
+        required: compKeys,
+        additionalProperties: false,
+      },
+      phases: {
+        type: "object",
+        properties: Object.fromEntries(phaseNames.map((p) => [p, scoreOrNull])),
+        required: phaseNames,
+        additionalProperties: false,
+      },
+      covered_topics: {
+        type: "array",
+        items: { type: "string", enum: rubric.topics.map((t) => t.key) },
+      },
+      exchanges: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            question: { type: "string" },
+            answer_gist: { type: "string" },
+            rating: { type: "string", enum: ["strong", "adequate", "weak"] },
+            comment: { type: "string" },
+            improvement: { type: "string" },
+          },
+          required: ["question", "answer_gist", "rating", "comment", "improvement"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: [
+      "overall_score",
+      "verdict",
+      "summary",
+      "strengths",
+      "growth_areas",
+      "top_priorities",
+      "competencies",
+      "phases",
+      "covered_topics",
+      "exchanges",
+    ],
+    additionalProperties: false,
+  };
 }
 
 function buildSystemPrompt(rubric) {
@@ -49,8 +126,16 @@ Respond with ONLY a JSON object in exactly this shape (no prose, no markdown):
   "top_priorities": ["<the single most important fix>", "<second>", "<third>"],
   "competencies": { "<competency key>": { "score": <1-5>, "evidence": "<short quote or close paraphrase from the transcript>" }, ... },
   "phases": { ${phaseNames.map((p) => `"${p}": <1-5 or null>`).join(", ")} },
-  "covered_topics": ["<topic key the interviewer actually explored>", ...]
-}`;
+  "covered_topics": ["<topic key the interviewer actually explored>", ...],
+  "exchanges": [ { "question": "...", "answer_gist": "...", "rating": "strong|adequate|weak", "comment": "...", "improvement": "..." }, ... ]
+}
+
+For "exchanges": walk the transcript and review each substantive question-and-answer exchange (skip the greeting and closing pleasantries; merge a question with its immediate follow-ups when they cover the same thread; at most 8 exchanges). Per exchange:
+- "question": the interviewer's question, shortened to its essence.
+- "answer_gist": one sentence capturing what the candidate actually answered.
+- "rating": strong (specific, credible, complete), adequate (answered but thin), or weak (vague, evasive, or off-target).
+- "comment": one or two sentences on what worked or didn't in THIS answer — reference their actual words.
+- "improvement": the single concrete change that would most improve this answer; for strong answers, how to make it even sharper.`;
 }
 
 function buildUserPrompt({ dialogue, user, rubric }) {
@@ -64,7 +149,24 @@ TRANSCRIPT:
 ${dialogue}`;
 }
 
-async function callChatCompletion({ system, user }) {
+// Call Groq with strict structured output (json_schema). Not every model
+// supports it, so on a schema-related rejection retry once with plain JSON
+// mode — the prompt describes the same shape and normalize() guards the rest.
+async function callChatCompletion({ system, user, schema }) {
+  const strictFormat = {
+    type: "json_schema",
+    json_schema: { name: "interview_report", strict: true, schema },
+  };
+  try {
+    return await postChat({ system, user, responseFormat: strictFormat });
+  } catch (err) {
+    if (!/\b400\b/.test(err.message)) throw err;
+    console.warn("[evaluation] json_schema rejected, retrying with json_object:", err.message);
+    return postChat({ system, user, responseFormat: { type: "json_object" } });
+  }
+}
+
+async function postChat({ system, user, responseFormat }) {
   const res = await fetch(`${config.evaluation.baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
@@ -74,7 +176,7 @@ async function callChatCompletion({ system, user }) {
     body: JSON.stringify({
       model: config.evaluation.model,
       temperature: 0.3,
-      response_format: { type: "json_object" },
+      response_format: responseFormat,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -127,6 +229,17 @@ function normalize(raw, rubric) {
     covered: covered.has(key),
   }));
 
+  const exchanges = (Array.isArray(raw?.exchanges) ? raw.exchanges : [])
+    .map((e) => ({
+      question: str(e?.question),
+      answer_gist: str(e?.answer_gist),
+      rating: ["strong", "adequate", "weak"].includes(e?.rating) ? e.rating : "adequate",
+      comment: str(e?.comment),
+      improvement: str(e?.improvement),
+    }))
+    .filter((e) => e.question && e.comment)
+    .slice(0, 8);
+
   return {
     overall_score: clamp(raw?.overall_score, 0, 100),
     verdict: str(raw?.verdict),
@@ -137,6 +250,7 @@ function normalize(raw, rubric) {
     per_competency,
     star,
     timeline,
+    exchanges,
   };
 }
 

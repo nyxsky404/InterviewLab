@@ -43,7 +43,7 @@ export const config = {
     provider: process.env.EVAL_PROVIDER || "groq",
     apiKey: process.env.GROQ_API_KEY || "",
     baseUrl: process.env.EVAL_BASE_URL || "https://api.groq.com/openai/v1",
-    model: process.env.EVAL_MODEL || "llama-3.3-70b-versatile",
+    model: process.env.EVAL_MODEL || "openai/gpt-oss-120b",
     enabled: Boolean(process.env.GROQ_API_KEY),
   },
   // Deepgram STT (listen) + TTS (speak) models, and the audio formats we

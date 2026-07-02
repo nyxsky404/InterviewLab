@@ -36,6 +36,13 @@ export function computeMetrics(turns, assessments) {
     /(\d+\s*%|\d+x\b|\$\d|\bpercent\b|\d[\d,]*\s*(users|requests|ms|seconds|minutes|hours|days|weeks|months|engineers|people|times))/i.test(t.content)
   ).length;
 
+  // Delivery: filler words per 100 spoken words, counted from the candidate's
+  // actual transcript. STT drops some fillers, so treat this as a floor.
+  const candidateText = answers.map((t) => t.content || "").join(" ");
+  const fillerMatches =
+    candidateText.match(/\b(um+|uh+|erm?|ah+|you know|i mean|sort of|kind of|basically)\b/gi) || [];
+  const interviewerWords = questions.reduce((s, t) => s + countWords(t.content), 0);
+
   return {
     answersGiven: answers.length,
     questionsAsked: questions.length,
@@ -44,6 +51,15 @@ export function computeMetrics(turns, assessments) {
     evidencePoints: assessments.length,
     competenciesCovered: new Set(assessments.map((a) => a.competency)).size,
     quantifiedAnswers,
+    fillerWords: fillerMatches.length,
+    fillerRate: totalWords ? Math.round((fillerMatches.length / totalWords) * 1000) / 10 : 0,
+    candidateWords: totalWords,
+    interviewerWords,
+    // Share of all spoken words that were the candidate's. Healthy interviews
+    // sit well above 50% — the candidate should be doing most of the talking.
+    talkRatio: totalWords + interviewerWords
+      ? Math.round((totalWords / (totalWords + interviewerWords)) * 100)
+      : 0,
   };
 }
 

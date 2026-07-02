@@ -10,8 +10,8 @@ export async function upsertFeedback(interviewId, f) {
   const { rows } = await query(
     `INSERT INTO feedback
        (interview_id, overall_score, summary, verdict, top_priorities,
-        per_competency, strengths, growth_areas, star, timeline)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        per_competency, strengths, growth_areas, star, timeline, exchanges)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (interview_id) DO UPDATE SET
        overall_score = EXCLUDED.overall_score,
        summary       = EXCLUDED.summary,
@@ -21,7 +21,8 @@ export async function upsertFeedback(interviewId, f) {
        strengths     = EXCLUDED.strengths,
        growth_areas  = EXCLUDED.growth_areas,
        star          = EXCLUDED.star,
-       timeline      = EXCLUDED.timeline
+       timeline      = EXCLUDED.timeline,
+       exchanges     = EXCLUDED.exchanges
      RETURNING *`,
     [
       interviewId,
@@ -34,6 +35,7 @@ export async function upsertFeedback(interviewId, f) {
       JSON.stringify(f.growth_areas || []),
       JSON.stringify(f.star || []),
       JSON.stringify(f.timeline || []),
+      JSON.stringify(f.exchanges || []),
     ]
   );
   return rows[0];
