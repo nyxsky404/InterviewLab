@@ -1,8 +1,3 @@
-// Single source of truth for the four interview types. Everything downstream —
-// the live agent's prompt + tool enums, the post-call evaluator's rubric, the
-// timeline/phase panels on the report — derives from these definitions, so a
-// new type is added here and nowhere else.
-//
 // Shape per type:
 //   label / tagline     — display copy
 //   interviewer         — the persona's name (used in the greeting)
@@ -254,25 +249,25 @@ export const INTERVIEW_TYPES = {
 
 export const TYPE_KEYS = Object.keys(INTERVIEW_TYPES);
 
-export function typeProfile(type) {
-  return INTERVIEW_TYPES[type] || INTERVIEW_TYPES.behavioral;
+export function getInterviewTypeConfig(type) {
+  return INTERVIEW_TYPES[type];
 }
 
 // Lookup helpers used by the report pipeline.
-export function topicLabelMap(type) {
-  const p = typeProfile(type);
+export function getTopicLabels(type) {
+  const p = getInterviewTypeConfig(type);
   return Object.fromEntries(p.topics.map((t) => [t.key, t.label]));
 }
 
-export function competencyKeys(type) {
-  return typeProfile(type).competencies.map((c) => c.key);
+export function getCompetencyKeys(type) {
+  return getInterviewTypeConfig(type).competencies.map((c) => c.key);
 }
 
 // The rubric the client needs to render a report for this type (labels, hints,
 // phase panel title) — sent alongside interview detail so the frontend never
 // hardcodes a type's competencies.
-export function publicRubric(type) {
-  const p = typeProfile(type);
+export function getClientRubric(type) {
+  const p = getInterviewTypeConfig(type);
   return {
     type: p.key,
     label: p.label,

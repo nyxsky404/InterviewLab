@@ -1,55 +1,110 @@
 import {
-  createInterview,
-  listInterviewsByUser,
-  findOwnedInterview,
-  completeInterview,
-} from "../models/interviewModel.js";
-import { listTurns } from "../models/turnModel.js";
-import { listAssessments } from "../models/assessmentModel.js";
-import { findFeedback } from "../models/feedbackModel.js";
-import {
   finalizeInterview,
   computeMetrics,
   computeTimeline,
   computePhaseRatings,
 } from "../services/reportService.js";
-import { TYPE_KEYS, publicRubric } from "../domain/interviewTypes.js";
+import { config } from "../config/config.js";
+import { prisma } from "../data/prisma.js";
+import { TYPE_KEYS, getClientRubric } from "../domain/interviewTypes.js";
+
+const JD_MAX_CHARS = config.limits.jdMaxChars;
+
+function cleanJd(value) {
+  if (typeof value !== "string") return null;
+  if (value.length > JD_MAX_CHARS) {
+    const err = new Error(`jdText must be ${JD_MAX_CHARS.toLocaleString()} characters or fewer`);
+    err.status = 400;
+    throw err;
+  }
+  const trimmed = value.trim();
+  return trimmed || null;
+}
 
 export async function create(req, res) {
-  const type = (req.body?.type || "behavioral").toLowerCase();
+  const type = (req.body?.type).toLowerCase();
   if (!TYPE_KEYS.includes(type)) {
     return res.status(400).json({ error: `Unknown interview type "${type}"` });
   }
-  const interview = await createInterview(req.userId, type);
+  const interview = await prisma.interview.create({
+    data: { userId: Number(req.userId), type },
+    select: { id: true, type: true, status: true, startedAt: true },
+  });
   return res.status(201).json({ interview });
 }
 
+export async function patchJd(req, res) {
+  let jdText;
+  try {
+    jdText = cleanJd(req.body?.jdText);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+  const result = await prisma.interview.updateManyAndReturn({
+    where: { id: Number(req.params.id), userId: Number(req.userId), status: "in_progress" },
+    data: { jdText },
+    select: { id: true, type: true, status: true, startedAt: true },
+  });
+  const interview = result[0];
+  if (!interview) {
+    return res.status(404).json({ error: "Interview not found or already completed" });
+  }
+  return res.json({ interview });
+}
+
 export async function list(req, res) {
-  const interviews = await listInterviewsByUser(req.userId);
+  const rows = await prisma.interview.findMany({
+    where: { userId: Number(req.userId) },
+    orderBy: { startedAt: "desc" },
+    include: { feedback: { select: { overallScore: true } } },
+  });
+  const interviews = rows.map((interview) => ({
+    id: interview.id,
+    type: interview.type,
+    status: interview.status,
+    startedAt: interview.startedAt,
+    endedAt: interview.endedAt,
+    overallScore: interview.feedback?.overallScore ?? null,
+  }));
   return res.json({ interviews });
 }
 
-// Full detail: interview + transcript + feedback.
-export async function detail(req, res) {
-  const interview = await findOwnedInterview(req.params.id, req.userId);
+export async function finishAndGenerateFeedback(req, res) {
+  const interview = await prisma.interview.findFirst({
+    where: { id: Number(req.params.id), userId: Number(req.userId) },
+  });
   if (!interview) return res.status(404).json({ error: "Interview not found" });
 
-  const [turns, feedback, assessments] = await Promise.all([
-    listTurns(interview.id),
-    findFeedback(interview.id),
-    listAssessments(interview.id),
+  await prisma.interview.updateMany({
+    where: { id: interview.id, status: { not: "completed" } },
+    data: { status: "completed", endedAt: new Date() },
+  });
+  const feedback = await finalizeInterview(interview.id);
+  return res.json({ ok: true, feedback });
+}
+
+export async function getReport(req, res) {
+  const interview = await prisma.interview.findFirst({
+    where: { id: Number(req.params.id), userId: Number(req.userId) },
+  });
+  if (!interview) return res.status(404).json({ error: "Interview not found" });
+
+  const [transcriptions, feedback, assessments] = await Promise.all([
+    prisma.transcription.findMany({
+      where: { interviewId: interview.id },
+      orderBy: { seq: "asc" },
+    }),
+    prisma.feedback.findUnique({ where: { interviewId: interview.id } }),
+    prisma.assessment.findMany({
+      where: { interviewId: interview.id },
+      orderBy: { createdAt: "asc" },
+    }),
   ]);
 
-  // Prefer the report the post-call evaluator wrote; fall back to values derived
-  // from the in-session assessments when the LLM report is absent.
   const star = feedback?.star?.length
     ? feedback.star
     : computePhaseRatings(assessments, interview.type);
 
-  // A topic counts as covered if EITHER the post-call evaluator flagged it
-  // OR the live interviewer logged an assessment against it. Relying on the
-  // evaluator alone blanks the whole timeline whenever that model names topics
-  // loosely; folding in the in-session tags keeps it honest to what happened.
   const liveCovered = new Set(
     computeTimeline(assessments, interview.type).filter((t) => t.covered).map((t) => t.topic)
   );
@@ -63,23 +118,12 @@ export async function detail(req, res) {
 
   return res.json({
     interview,
-    turns,
+    transcriptions,
     feedback,
     assessments,
-    metrics: computeMetrics(turns, assessments),
+    metrics: computeMetrics(transcriptions, assessments),
     timeline,
     star,
-    rubric: publicRubric(interview.type),
+    rubric: getClientRubric(interview.type),
   });
-}
-
-// Close the session and generate the report from the transcript (falling back
-// to the in-session assessments if the external evaluator is unavailable).
-export async function finish(req, res) {
-  const interview = await findOwnedInterview(req.params.id, req.userId);
-  if (!interview) return res.status(404).json({ error: "Interview not found" });
-
-  await completeInterview(interview.id);
-  const feedback = await finalizeInterview(interview.id);
-  return res.json({ ok: true, feedback });
 }

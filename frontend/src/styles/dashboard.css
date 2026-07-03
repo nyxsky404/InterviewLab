@@ -10,8 +10,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 0;
-  margin-bottom: 26px;
+  height: 64px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
 }
 
 .topbar-right {
@@ -26,8 +27,16 @@
   gap: 10px;
   padding: 5px 12px 5px 5px;
   border: 1px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--radius-s);
   background: var(--surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.user-chip:hover {
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-s);
 }
 .avatar {
   display: grid;
@@ -35,30 +44,96 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: var(--accent-soft-2);
-  color: var(--accent-strong);
-  font-size: 12px;
-  font-weight: 700;
+  background: #171717;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
 }
 .user-chip .who {
   line-height: 1.2;
 }
 .user-chip .who .name {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 .user-chip .who .role {
-  font-size: 11.5px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   color: var(--text-3);
 }
 
-.section-head {
+/* ── Personalize (add-resume) banner ───────────────────────────────────── */
+.personalize-banner {
+  position: relative;
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  box-shadow: var(--shadow-s), var(--ring);
+  text-align: left;
+  font: inherit;
+  overflow: hidden;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+/* A slim mesh-gradient edge signals "this is the branded upsell". */
+.personalize-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--mesh);
+}
+.personalize-banner:hover {
+  box-shadow: var(--shadow), var(--ring);
+  transform: translateY(-1px);
+}
+.personalize-banner .pb-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  color: var(--text);
+}
+.personalize-banner .pb-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.45;
+}
+.personalize-banner .pb-text strong {
+  color: var(--text);
+  font-weight: 500;
+}
+.personalize-banner .pb-cta {
+  flex: none;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+}
+@media (max-width: 620px) {
+  .personalize-banner .pb-cta {
+    display: none;
+  }
+}
+
+.section-head {
   margin: 34px 0 14px;
 }
+.section-head .eyebrow {
+  margin-bottom: 8px;
+}
 .section-head p {
+  margin-top: 4px;
   font-size: 13.5px;
   color: var(--text-2);
 }
@@ -76,17 +151,16 @@
   align-items: flex-start;
   gap: 12px;
   padding: 18px;
-  border: 1px solid var(--border);
   border-radius: var(--radius-l);
   background: var(--surface);
+  box-shadow: var(--shadow-s), var(--ring);
   text-align: left;
   font: inherit;
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
 .type-card:hover {
-  border-color: var(--card-accent, var(--accent));
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), var(--ring);
   transform: translateY(-2px);
 }
 .type-card:disabled {
@@ -100,14 +174,15 @@
   place-items: center;
   width: 38px;
   height: 38px;
-  border-radius: 10px;
-  background: var(--card-soft, var(--accent-soft));
-  color: var(--card-accent, var(--accent));
+  border-radius: var(--radius-s);
+  background: var(--card-soft, var(--surface-2));
+  color: var(--card-accent, var(--text));
 }
 
 .type-card .type-label {
   font-size: 15px;
-  font-weight: 650;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 .type-card .type-blurb {
   font-size: 13px;
@@ -118,15 +193,17 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
   color: var(--text-3);
+  letter-spacing: -0.01em;
 }
 
 /* ── Session history ───────────────────────────────────────────────────── */
 .session-list {
-  border: 1px solid var(--border);
   border-radius: var(--radius-l);
   background: var(--surface);
+  box-shadow: var(--shadow-s), var(--ring);
   overflow: hidden;
 }
 
@@ -136,9 +213,13 @@
   justify-content: space-between;
   gap: 16px;
   padding: 14px 18px;
+  transition: background 0.15s ease;
 }
 .session-row + .session-row {
   border-top: 1px solid var(--border);
+}
+.session-row:hover {
+  background: var(--surface-2);
 }
 
 .session-left {
@@ -150,15 +231,16 @@
 .session-left .type-icon {
   width: 34px;
   height: 34px;
-  border-radius: 9px;
   flex: none;
 }
 .session-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 .session-date {
-  font-size: 12.5px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
   color: var(--text-3);
 }
 
@@ -170,33 +252,38 @@
 
 .pill {
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: 100px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 .pill.done {
   background: var(--success-soft);
-  color: var(--success);
+  color: var(--link-deep);
 }
 .pill.open {
   background: var(--warn-soft);
   color: var(--warn);
+}
+.pill.abandoned {
+  background: var(--surface-2);
+  color: var(--text-3);
 }
 
 .score-chip {
   min-width: 44px;
   text-align: center;
   padding: 3px 8px;
-  border-radius: 8px;
-  background: var(--accent-soft);
-  color: var(--accent-strong);
+  border-radius: var(--radius-s);
+  background: #171717;
+  color: #fff;
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 500;
   font-variant-numeric: tabular-nums;
 }
 
 .empty-state {
-  padding: 36px 18px;
+  padding: 40px 18px;
   text-align: center;
   color: var(--text-3);
   font-size: 14px;

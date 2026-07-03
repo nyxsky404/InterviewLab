@@ -44,6 +44,15 @@ export class PcmPlayer {
     src.onended = () => this.sources.delete(src);
   }
 
+  // True while agent audio is still scheduled to play — i.e. the candidate can
+  // still HEAR the interviewer. This lags the server's "done streaming" signal
+  // (Deepgram's AgentAudioDone), which fires seconds before the buffered audio
+  // actually finishes, so it's the honest source for "is the agent talking".
+  isActive() {
+    if (!this.ctx) return false;
+    return this.nextTime > this.ctx.currentTime + 0.05;
+  }
+
   // RMS output level, 0..~1 — drives the agent blob's animation.
   getLevel() {
     if (!this.analyser) return 0;

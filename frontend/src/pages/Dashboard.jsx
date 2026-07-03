@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import Brand from "../components/Brand.jsx";
+import ProfileModal from "../components/ProfileModal.jsx";
 import { INTERVIEW_TYPES, TypeIcon, typeMeta } from "../interviewTypes.jsx";
 import "../styles/dashboard.css";
 
@@ -12,6 +13,7 @@ export default function Dashboard() {
   const [interviews, setInterviews] = useState([]);
   const [startingType, setStartingType] = useState(null);
   const [error, setError] = useState("");
+  const [showProfile, setShowProfile] = useState(false);
 
   useEffect(() => {
     api.listInterviews().then((d) => setInterviews(d.interviews)).catch(() => {});
@@ -29,6 +31,19 @@ export default function Dashboard() {
     }
   }
 
+  // Abandoned sessions can't be resumed (the interviewer has no memory of the
+  // dropped call), so this starts a brand-new interview of the same type
+  // rather than reopening the stale one.
+  async function startOver(typeId) {
+    setError("");
+    try {
+      const { interview } = await api.createInterview(typeId);
+      navigate(`/interview/${interview.id}`);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   const initials = (user.name || "?")
     .split(" ")
     .map((w) => w[0])
@@ -41,7 +56,11 @@ export default function Dashboard() {
       <header className="topbar">
         <Brand />
         <div className="topbar-right">
-          <div className="user-chip">
+          <button
+            className="user-chip"
+            onClick={() => setShowProfile(true)}
+            title="Edit your profile"
+          >
             <span className="avatar">{initials}</span>
             <span className="who">
               <span className="name">{user.name}</span>
@@ -50,16 +69,30 @@ export default function Dashboard() {
                 {user.jobRole} · {user.experienceLevel}
               </span>
             </span>
-          </div>
+          </button>
           <button className="btn ghost small" onClick={logout}>
             Log out
           </button>
         </div>
       </header>
 
+      {!user.hasResume && (
+        <button className="personalize-banner fade-up" onClick={() => setShowProfile(true)}>
+          <span className="pb-icon">
+            <TypeIcon icon="doc" size={18} />
+          </span>
+          <span className="pb-text">
+            <strong>Add your resume for a tailored interview.</strong> The interviewer will ask
+            about your real projects, and your report gets a resume-vs-interview gap analysis.
+          </span>
+          <span className="pb-cta">Add resume →</span>
+        </button>
+      )}
+
       <section className="fade-up">
         <div className="section-head">
-          <h2>Start a new interview</h2>
+          <span className="eyebrow">New session</span>
+          <h2>Start a new interview.</h2>
           <p>Pick a format — your interviewer adapts to your role and level.</p>
         </div>
         <div className="type-grid">
@@ -87,7 +120,8 @@ export default function Dashboard() {
 
       <section className="fade-up">
         <div className="section-head">
-          <h2>Past sessions</h2>
+          <span className="eyebrow">History</span>
+          <h2>Past sessions.</h2>
         </div>
         <div className="session-list">
           {interviews.length === 0 ? (
@@ -95,23 +129,28 @@ export default function Dashboard() {
               No interviews yet — pick a format above to run your first one.
             </div>
           ) : (
-            interviews.map((iv) => <SessionRow key={iv.id} iv={iv} navigate={navigate} />)
+            interviews.map((iv) => (
+              <SessionRow key={iv.id} iv={iv} navigate={navigate} onStartOver={startOver} />
+            ))
           )}
         </div>
       </section>
+
+      {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
     </div>
   );
 }
 
-function SessionRow({ iv, navigate }) {
+const SessionRow = memo(function SessionRow({ iv, navigate, onStartOver }) {
   const meta = typeMeta(iv.type);
   const done = iv.status === "completed";
-  const date = new Date(iv.started_at).toLocaleDateString(undefined, {
+  const abandoned = iv.status === "abandoned";
+  const date = new Date(iv.startedAt).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
     year: "numeric",
   });
-  const time = new Date(iv.started_at).toLocaleTimeString(undefined, {
+  const time = new Date(iv.startedAt).toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -130,13 +169,17 @@ function SessionRow({ iv, navigate }) {
         </div>
       </div>
       <div className="session-right">
-        {iv.overall_score != null && <span className="score-chip">{iv.overall_score}</span>}
-        <span className={`pill ${done ? "done" : "open"}`}>
-          {done ? "Completed" : "In progress"}
+        {iv.overallScore != null && <span className="score-chip">{iv.overallScore}</span>}
+        <span className={`pill ${done ? "done" : abandoned ? "abandoned" : "open"}`}>
+          {done ? "Completed" : abandoned ? "Abandoned" : "In progress"}
         </span>
         {done ? (
           <button className="btn small" onClick={() => navigate(`/interview/${iv.id}/report`)}>
             View report
+          </button>
+        ) : abandoned ? (
+          <button className="btn small" onClick={() => onStartOver(iv.type)}>
+            Start over
           </button>
         ) : (
           <button className="btn small" onClick={() => navigate(`/interview/${iv.id}`)}>
@@ -146,4 +189,4 @@ function SessionRow({ iv, navigate }) {
       </div>
     </div>
   );
-}
+});

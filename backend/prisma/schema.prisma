@@ -1,0 +1,87 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              Int         @id @default(autoincrement())
+  email           String      @unique
+  passwordHash    String      @map("password_hash")
+  name            String
+  jobRole         String      @map("job_role")
+  experienceLevel String      @map("experience_level")
+  resumeText      String?     @map("resume_text")
+  skills          String?
+  yearsExperience Int?        @map("years_experience")
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  interviews      Interview[]
+
+  @@map("users")
+}
+
+model Interview {
+  id                Int          @id @default(autoincrement())
+  userId            Int          @map("user_id")
+  type              String       @default("behavioral")
+  status            String       @default("in_progress")
+  startedAt         DateTime     @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt           DateTime?    @map("ended_at") @db.Timestamptz(6)
+  deepgramRequestId String?      @map("deepgram_request_id")
+  jdText            String?      @map("jd_text")
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transcriptions    Transcription[]
+  assessments       Assessment[]
+  feedback          Feedback?
+
+  @@index([userId, startedAt(sort: Desc)], map: "idx_interviews_user")
+  @@map("interviews")
+}
+
+model Transcription {
+  id          Int       @id @default(autoincrement())
+  interviewId Int       @map("interview_id")
+  seq         Int
+  role        String
+  content     String
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@index([interviewId, seq], map: "idx_transcriptions_interview")
+  @@map("transcriptions")
+}
+
+model Assessment {
+  id          Int       @id @default(autoincrement())
+  interviewId Int       @map("interview_id")
+  competency  String
+  topic       String?
+  score       Int
+  note        String?
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  interview   Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@index([interviewId], map: "idx_assessments_interview")
+  @@map("assessments")
+}
+
+model Feedback {
+  interviewId   Int       @id @map("interview_id")
+  overallScore  Int?      @map("overall_score")
+  summary       String?
+  verdict       String?
+  topPriorities Json      @default("[]") @map("top_priorities")
+  perCompetency Json      @default("[]") @map("per_competency")
+  strengths     Json      @default("[]")
+  growthAreas   Json      @default("[]") @map("growth_areas")
+  star          Json      @default("[]")
+  timeline      Json      @default("[]")
+  exchanges     Json      @default("[]")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  interview     Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@map("feedback")
+}

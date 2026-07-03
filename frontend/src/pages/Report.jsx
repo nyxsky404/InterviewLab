@@ -9,10 +9,10 @@ import "../styles/report.css";
 // Turn a 0–100 score into something meaningful. This is the single biggest
 // "what does my number mean?" gap a bare score leaves open.
 const SCORE_BANDS = [
-  { min: 85, label: "Outstanding", tone: "great", color: "#16a34a" },
-  { min: 70, label: "Strong", tone: "good", color: "#4f46e5" },
-  { min: 55, label: "Developing", tone: "warn", color: "#d97706" },
-  { min: 0, label: "Needs work", tone: "bad", color: "#dc2626" },
+  { min: 85, label: "Outstanding", tone: "great", color: "#29bc9b" },
+  { min: 70, label: "Strong", tone: "good", color: "#0070f3" },
+  { min: 55, label: "Developing", tone: "warn", color: "#f5a623" },
+  { min: 0, label: "Needs work", tone: "bad", color: "#ee0000" },
 ];
 
 function bandFor(score) {
@@ -56,7 +56,7 @@ export default function Report() {
 
   const {
     interview,
-    turns = [],
+    transcriptions = [],
     feedback,
     metrics,
     timeline = [],
@@ -64,14 +64,14 @@ export default function Report() {
     rubric,
   } = data;
   const meta = typeMeta(interview.type);
-  const score = feedback?.overall_score ?? null;
+  const score = feedback?.overallScore ?? null;
   const band = bandFor(score);
   const exchanges = feedback?.exchanges || [];
-  const perComp = feedback?.per_competency || [];
+  const perComp = feedback?.perCompetency || [];
   const scoreMap = Object.fromEntries(perComp.map((c) => [c.competency, c]));
 
-  // The interview never really happened — no turns, no feedback worth showing.
-  if (!feedback && turns.length === 0) {
+  // The interview never really happened — no transcriptions, no feedback worth showing.
+  if (!feedback && transcriptions.length === 0) {
     return (
       <div className="page-center">
         <div className="card report-empty">
@@ -85,19 +85,19 @@ export default function Report() {
     );
   }
 
-  const started = new Date(interview.started_at);
+  const started = new Date(interview.startedAt);
   const durationMin =
-    interview.ended_at != null
-      ? Math.max(1, Math.round((new Date(interview.ended_at) - started) / 60000))
+    interview.endedAt != null
+      ? Math.max(1, Math.round((new Date(interview.endedAt) - started) / 60000))
       : null;
 
   // Merge consecutive same-speaker STT segments into whole turns, the same way
   // the live captions do, so the transcript reads naturally.
-  const mergedTurns = [];
-  for (const t of turns) {
-    const last = mergedTurns[mergedTurns.length - 1];
+  const mergedTranscriptions = [];
+  for (const t of transcriptions) {
+    const last = mergedTranscriptions[mergedTranscriptions.length - 1];
     if (last && last.role === t.role) last.content = `${last.content} ${t.content}`.trim();
-    else mergedTurns.push({ role: t.role, content: t.content });
+    else mergedTranscriptions.push({ role: t.role, content: t.content });
   }
 
   return (
@@ -121,7 +121,7 @@ export default function Report() {
               {durationMin && <span>{durationMin} min</span>}
             </div>
             <h1>
-              Feedback report
+              Feedback report.
               {band && <span className={`band-pill ${band.tone}`}>{band.label}</span>}
             </h1>
             <p className="summary">
@@ -139,12 +139,12 @@ export default function Report() {
         </section>
       )}
 
-      {feedback?.top_priorities?.length > 0 && (
+      {feedback?.topPriorities?.length > 0 && (
         <section className="card fade-up">
           <h3>What to fix first</h3>
           <p className="hint">In order of impact on your next interview.</p>
           <ol className="priorities">
-            {feedback.top_priorities.slice(0, 3).map((p, i) => (
+            {feedback.topPriorities.slice(0, 3).map((p, i) => (
               <li key={i}>
                 <span className="pri-num">{i + 1}</span>
                 <span>{p}</span>
@@ -247,7 +247,7 @@ export default function Report() {
         </section>
         <section className="card">
           <h3>Growth areas</h3>
-          <FeedbackList items={feedback?.growth_areas} empty="No growth areas captured." icon="→" tone="neg" />
+          <FeedbackList items={feedback?.growthAreas} empty="No growth areas captured." icon="→" tone="neg" />
         </section>
       </div>
 
@@ -269,12 +269,12 @@ export default function Report() {
 
       <section className="card">
         <details className="transcript-details">
-          <summary>Full transcript ({mergedTurns.length} turns)</summary>
+          <summary>Full transcript ({mergedTranscriptions.length} turns)</summary>
           <div className="report-transcript">
-            {mergedTurns.length === 0 ? (
+            {mergedTranscriptions.length === 0 ? (
               <p className="muted">No conversation was recorded.</p>
             ) : (
-              mergedTurns.map((t, i) => (
+              mergedTranscriptions.map((t, i) => (
                 <div key={i} className={`rt-line ${t.role}`}>
                   <span className="rt-who">
                     {t.role === "assistant" ? rubric?.interviewer || "Interviewer" : "You"}

@@ -8,8 +8,7 @@ import "../styles/auth.css";
 const LEVELS = [
   { value: "junior", label: "Junior" },
   { value: "mid", label: "Mid" },
-  { value: "senior", label: "Senior" },
-  { value: "staff", label: "Staff+" },
+  { value: "senior", label: "Senior" }
 ];
 
 export default function Signup() {
@@ -46,7 +45,8 @@ export default function Signup() {
     <div className="auth-wrap">
       <Brand />
       <div className="card auth-card fade-up">
-        <h1>Create your account</h1>
+        <span className="eyebrow">Get started</span>
+        <h1>Create your account.</h1>
         <p className="lede">A quick profile lets the interviewer tailor its questions to you.</p>
 
         <form onSubmit={submit}>

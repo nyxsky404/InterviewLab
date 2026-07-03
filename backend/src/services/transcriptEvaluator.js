@@ -1,5 +1,5 @@
-import { config } from "../config/index.js";
-import { typeProfile, topicLabelMap } from "../domain/interviewTypes.js";
+import { config } from "../config/config.js";
+import { getInterviewTypeConfig, getTopicLabels } from "../domain/interviewTypes.js";
 
 // Post-call report generation. Reads the FULL transcript once the interview
 // ends and returns the structured feedback. The LLM supplies judgments only —
@@ -7,11 +7,11 @@ import { typeProfile, topicLabelMap } from "../domain/interviewTypes.js";
 // can't corrupt the report. Throws on any failure so the caller can fall back
 // to the in-session assessment synthesis.
 
-export async function evaluateTranscript({ turns, user, type }) {
+export async function evaluateTranscript({ transcriptions, user, type }) {
   if (!config.evaluation.enabled) throw new Error("evaluation LLM not configured");
-  const rubric = typeProfile(type);
+  const rubric = getInterviewTypeConfig(type);
 
-  const dialogue = turns
+  const dialogue = transcriptions
     .filter((t) => t.content && t.content.trim())
     .map((t) => `${t.role === "assistant" ? "INTERVIEWER" : "CANDIDATE"}: ${t.content.trim()}`)
     .join("\n");
@@ -130,6 +130,8 @@ Respond with ONLY a JSON object in exactly this shape (no prose, no markdown):
   "exchanges": [ { "question": "...", "answer_gist": "...", "rating": "strong|adequate|weak", "comment": "...", "improvement": "..." }, ... ]
 }
 
+If the candidate's resume and/or a target job description are provided below, do a skill-gap read: weigh what the role needs (and what the resume claims) against what they actually demonstrated in the transcript. Fold that into "growth_areas" and "top_priorities" — e.g. a skill the JD requires that never showed up, or a resume claim the interview did not substantiate. Judge only the transcript; use the resume/JD to decide what MATTERS, never to credit them for things they didn't demonstrate.
+
 For "exchanges": walk the transcript and review each substantive question-and-answer exchange (skip the greeting and closing pleasantries; merge a question with its immediate follow-ups when they cover the same thread; at most 8 exchanges). Per exchange:
 - "question": the interviewer's question, shortened to its essence.
 - "answer_gist": one sentence capturing what the candidate actually answered.
@@ -138,13 +140,30 @@ For "exchanges": walk the transcript and review each substantive question-and-an
 - "improvement": the single concrete change that would most improve this answer; for strong answers, how to make it even sharper.`;
 }
 
+function clip(text, max) {
+  const s = String(text || "").replace(/\s+/g, " ").trim();
+  return s.length > max ? `${s.slice(0, max)}…` : s;
+}
+
 function buildUserPrompt({ dialogue, user, rubric }) {
-  const role = user?.job_role || "software engineer";
-  const level = user?.experience_level || "mid";
+  const role = user?.jobRole || "software engineer";
+  const level = user?.experienceLevel || "mid";
+  const resume = clip(user?.resumeText, 3000);
+  const skills = clip(user?.skills, 500);
+  const jd = clip(user?.jdText, 2000);
+
+  const context = [
+    resume && `CANDIDATE RESUME:\n${resume}`,
+    skills && `CANDIDATE SKILLS: ${skills}`,
+    jd && `TARGET JOB DESCRIPTION:\n${jd}`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+
   return `Interview type: ${rubric.label}
 Candidate: ${user?.name || "the candidate"} — target role: ${role}, experience level: ${level}
 Calibrate your scores to a ${level}-level ${role}.
-
+${context ? `\n${context}\n` : ""}
 TRANSCRIPT:
 ${dialogue}`;
 }
@@ -215,7 +234,7 @@ function normalize(raw, rubric) {
   // The model is asked for topic *keys*, but often echoes the label or a loose
   // variant ("Situation / setup", "situation setup"). Match tolerantly against
   // both keys and labels so a naming mismatch doesn't blank the timeline.
-  const labels = topicLabelMap(rubric.key);
+  const labels = getTopicLabels(rubric.key);
   const lookup = buildTopicLookup(labels);
   const coveredRaw = Array.isArray(raw?.covered_topics) ? raw.covered_topics : [];
   const covered = new Set();

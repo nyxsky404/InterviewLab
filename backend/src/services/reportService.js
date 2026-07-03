@@ -1,32 +1,29 @@
-import { config } from "../config/index.js";
-import {
-  addAssessment,
-  averageByCompetency,
-  listNotedAssessments,
-} from "../models/assessmentModel.js";
-import { listTurns } from "../models/turnModel.js";
-import { getEvaluationContext } from "../models/interviewModel.js";
-import { findFeedback, upsertFeedback, insertFeedbackIfAbsent } from "../models/feedbackModel.js";
-import { typeProfile, topicLabelMap } from "../domain/interviewTypes.js";
+import { Prisma } from "@prisma/client";
+import { config } from "../config/config.js";
+import { prisma } from "../data/prisma.js";
+import { getInterviewTypeConfig, getTopicLabels } from "../domain/interviewTypes.js";
 
 // Insert one live rubric judgment (called from the record_assessment tool).
 // The topic is validated against the interview type's rubric so a hallucinated
 // tag can't corrupt the timeline.
 export async function recordAssessment(interviewId, { competency, topic, score, note }, type) {
-  const topics = topicLabelMap(type);
-  await addAssessment(interviewId, {
-    competency,
-    topic: topics[topic] ? topic : null,
-    score: Math.round(score),
-    note: note || null,
+  const topics = getTopicLabels(type);
+  await prisma.assessment.create({
+    data: {
+      interviewId: Number(interviewId),
+      competency,
+      topic: topics[topic] ? topic : null,
+      score: Math.round(score),
+      note: note || null,
+    },
   });
 }
 
 // Real answer-quality metrics derived from the transcript + logged assessments.
 // Everything here is measured, not estimated — no invented benchmarks.
-export function computeMetrics(turns, assessments) {
-  const answers = turns.filter((t) => t.role === "user");
-  const questions = turns.filter((t) => t.role === "assistant");
+export function computeMetrics(transcriptions, assessments) {
+  const answers = transcriptions.filter((t) => t.role === "user");
+  const questions = transcriptions.filter((t) => t.role === "assistant");
   const wordCounts = answers.map((t) => countWords(t.content));
   const totalWords = wordCounts.reduce((s, n) => s + n, 0);
 
@@ -71,11 +68,11 @@ function countWords(s) {
 // it never got to — this is the honest "what did the interviewer explore"
 // picture, straight from the logged per-answer tags.
 export function computeTimeline(assessments, type) {
-  const labels = topicLabelMap(type);
+  const labels = getTopicLabels(type);
   const firstSeen = new Map();
   for (const a of assessments) {
     if (a.topic && labels[a.topic] && !firstSeen.has(a.topic)) {
-      firstSeen.set(a.topic, a.created_at);
+      firstSeen.set(a.topic, a.createdAt);
     }
   }
   return Object.keys(labels).map((key) => ({
@@ -93,7 +90,7 @@ export function computePhaseRatings(assessments, type) {
   for (const a of assessments) {
     if (a.topic) (byTopic[a.topic] ||= []).push(a.score);
   }
-  return typeProfile(type).phases.map(([phase, topics]) => {
+  return getInterviewTypeConfig(type).phases.map(([phase, topics]) => {
     const scores = topics.flatMap((t) => byTopic[t] || []);
     const rating = scores.length
       ? Math.round((scores.reduce((s, n) => s + n, 0) / scores.length) * 2) / 2
@@ -106,7 +103,8 @@ export function computePhaseRatings(assessments, type) {
 // written (e.g. a prior /finish call), return it; otherwise generate one from the
 // transcript, falling back to the per-answer assessments so it's never empty.
 export async function finalizeInterview(interviewId) {
-  const existing = await findFeedback(interviewId);
+  const id = Number(interviewId);
+  const existing = await prisma.feedback.findUnique({ where: { interviewId: id } });
   if (existing) return existing;
 
   // Primary path: an external LLM reads the full transcript and writes the whole
@@ -121,9 +119,35 @@ export async function finalizeInterview(interviewId) {
     }
   }
 
-  const ctx = await getEvaluationContext(interviewId);
+  const interview = await prisma.interview.findUnique({
+    where: { id },
+    include: { user: true },
+  });
+  const ctx = interview
+    ? {
+        type: interview.type,
+        jdText: interview.jdText,
+        name: interview.user.name,
+        jobRole: interview.user.jobRole,
+        experienceLevel: interview.user.experienceLevel,
+        resumeText: interview.user.resumeText,
+        skills: interview.user.skills,
+        yearsExperience: interview.user.yearsExperience,
+      }
+    : null;
   const type = ctx?.type;
-  const perCompetency = await averageByCompetency(interviewId);
+  const competencyRows = await prisma.assessment.groupBy({
+    by: ["competency"],
+    where: { interviewId: id },
+    _avg: { score: true },
+    _count: { score: true },
+    orderBy: { competency: "asc" },
+  });
+  const perCompetency = competencyRows.map((row) => ({
+    competency: row.competency,
+    score: Math.round(Number(row._avg.score || 0) * 10) / 10,
+    samples: row._count.score,
+  }));
   const overall = perCompetency.length
     ? Math.round(
         (perCompetency.reduce((sum, c) => sum + c.score, 0) / perCompetency.length / 5) * 100
@@ -138,37 +162,93 @@ export async function finalizeInterview(interviewId) {
     overall
   );
 
-  return insertFeedbackIfAbsent(interviewId, {
-    overall_score: overall,
-    summary,
-    verdict: deriveVerdict(overall, perCompetency),
-    top_priorities: derivePriorities(perCompetency, type),
-    per_competency: perCompetency,
-    strengths,
-    growth_areas: growthAreas,
-  });
+  try {
+    return await prisma.feedback.create({
+      data: {
+        interviewId: id,
+        overallScore: overall,
+        summary,
+        verdict: deriveVerdict(overall, perCompetency),
+        topPriorities: derivePriorities(perCompetency, type),
+        perCompetency,
+        strengths,
+        growthAreas,
+        star: [],
+        timeline: [],
+        exchanges: [],
+      },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      return prisma.feedback.findUnique({ where: { interviewId: id } });
+    }
+    throw err;
+  }
 }
 
 // Run the external transcript evaluator and persist the full report. Returns
 // null (so the caller can fall back) if there's nothing to evaluate.
 async function evaluateAndSave(interviewId) {
-  const [turns, ctx] = await Promise.all([
-    listTurns(interviewId),
-    getEvaluationContext(interviewId),
+  const id = Number(interviewId);
+  const [transcriptions, ctx] = await Promise.all([
+    prisma.transcription.findMany({
+      where: { interviewId: id },
+      orderBy: { seq: "asc" },
+    }),
+    prisma.interview.findUnique({
+      where: { id },
+      include: { user: true },
+    }),
   ]);
-  if (!turns.length) return null;
+  if (!transcriptions.length) return null;
+  const userContext = ctx
+    ? {
+        type: ctx.type,
+        jdText: ctx.jdText,
+        name: ctx.user.name,
+        jobRole: ctx.user.jobRole,
+        experienceLevel: ctx.user.experienceLevel,
+        resumeText: ctx.user.resumeText,
+        skills: ctx.user.skills,
+        yearsExperience: ctx.user.yearsExperience,
+      }
+    : null;
 
   // Dynamic import avoids a static circular dependency (the evaluator imports
   // the shared TOPIC_META / STAR_PHASES shapes from this module).
   const { evaluateTranscript } = await import("./transcriptEvaluator.js");
   const report = await evaluateTranscript({
-    turns,
-    user: ctx,
-    type: ctx?.type,
+    transcriptions,
+    user: userContext,
+    type: userContext?.type,
   });
-  return upsertFeedback(interviewId, {
-    ...report,
-    overall_score: clampInt(report.overall_score, 0, 100),
+  return prisma.feedback.upsert({
+    where: { interviewId: id },
+    create: {
+      interviewId: id,
+      overallScore: clampInt(report.overall_score, 0, 100),
+      summary: report.summary || "",
+      verdict: report.verdict || "",
+      topPriorities: report.top_priorities || [],
+      perCompetency: report.per_competency || [],
+      strengths: report.strengths || [],
+      growthAreas: report.growth_areas || [],
+      star: report.star || [],
+      timeline: report.timeline || [],
+      exchanges: report.exchanges || [],
+    },
+    update: {
+      overallScore: clampInt(report.overall_score, 0, 100),
+      summary: report.summary || "",
+      verdict: report.verdict || "",
+      topPriorities: report.top_priorities || [],
+      perCompetency: report.per_competency || [],
+      strengths: report.strengths || [],
+      growthAreas: report.growth_areas || [],
+      star: report.star || [],
+      timeline: report.timeline || [],
+      exchanges: report.exchanges || [],
+    },
   });
 }
 
@@ -183,7 +263,15 @@ async function synthesizeFromAssessments(interviewId, perCompetency, overall) {
     };
   }
 
-  const rows = await listNotedAssessments(interviewId);
+  const rows = await prisma.assessment.findMany({
+    where: {
+      interviewId: Number(interviewId),
+      note: { not: null },
+      NOT: { note: "" },
+    },
+    orderBy: { score: "desc" },
+    select: { competency: true, score: true, note: true },
+  });
 
   // Highest-scoring notes become strengths; lowest-scoring become growth areas.
   const strengths = rows
@@ -244,7 +332,7 @@ export function deriveVerdict(overall, perCompetency) {
 export function derivePriorities(perCompetency, type) {
   if (!perCompetency.length) return [];
   const tips = Object.fromEntries(
-    typeProfile(type).competencies.map((c) => [c.key, c.tip])
+    getInterviewTypeConfig(type).competencies.map((c) => [c.key, c.tip])
   );
   return [...perCompetency]
     .sort((a, b) => a.score - b.score)

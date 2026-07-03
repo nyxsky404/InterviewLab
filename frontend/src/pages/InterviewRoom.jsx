@@ -1,21 +1,29 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api, voiceWsUrl } from "../api.js";
+import { useAuth } from "../auth.jsx";
 import { MicRecorder } from "../audio/recorder.js";
 import { PcmPlayer } from "../audio/player.js";
+import { playInterviewSound } from "../audio/sfx.js";
 import { typeMeta } from "../interviewTypes.jsx";
+import VoiceOrb from "../components/VoiceOrb.jsx";
+import "../styles/orb.css";
 import "../styles/room.css";
+
+const JD_MAX_CHARS = 2000;
 
 // phase: lobby -> connecting -> live -> ended
 //                       \-> failed (connection died before the call started)
 export default function InterviewRoom() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [interview, setInterview] = useState(null);
+  const [jd, setJd] = useState("");
+  const [jdOpen, setJdOpen] = useState(false);
   const [phase, setPhase] = useState("lobby");
   const [agentSpeaking, setAgentSpeaking] = useState(false);
-  const [userSpeaking, setUserSpeaking] = useState(false);
   const [muted, setMuted] = useState(false);
   const [showCaptions, setShowCaptions] = useState(true);
   const [showTranscript, setShowTranscript] = useState(false);
@@ -41,10 +49,18 @@ export default function InterviewRoom() {
     api
       .getInterview(id)
       .then((d) => {
-        if (d.interview.status === "completed") {
+        // Completed sessions go to their report. Abandoned ones can't be
+        // resumed either (the interviewer has no memory of the dropped call),
+        // so send them to the report too — it renders gracefully from
+        // whatever partial transcript/assessments exist.
+        if (d.interview.status === "completed" || d.interview.status === "abandoned") {
           navigate(`/interview/${id}/report`, { replace: true });
         } else {
           setInterview(d.interview);
+          if (d.interview.jdText) {
+            setJd(d.interview.jdText);
+            setJdOpen(true);
+          }
         }
       })
       .catch((e) => {
@@ -60,21 +76,26 @@ export default function InterviewRoom() {
     return () => clearInterval(t);
   }, [phase]);
 
-  // Drive the voice blob from the agent's REAL output level, and the
-  // "you're speaking" chip from the mic level — no fake animations.
+  // Drive the voice blob from the agent's REAL output level, and derive
+  // "is the interviewer talking" from actual client playback — not the server's
+  // done-streaming signal, which fires seconds before the buffered audio ends.
+  // This is what gates the candidate's mic, so it must track what they hear.
   useEffect(() => {
     if (phase !== "live" && phase !== "connecting") return;
-    let speaking = false;
+    let agentOn = false;
+    let lastActive = 0;
     const tick = () => {
-      const agentLevel = playerRef.current?.getLevel() ?? 0;
+      const player = playerRef.current;
+      const agentLevel = player?.getLevel() ?? 0;
       if (blobRef.current) {
         blobRef.current.style.setProperty("--level", Math.min(1, agentLevel * 2.6).toFixed(3));
       }
-      const mic = recorderRef.current?.getLevel() ?? 0;
-      const next = mic > 0.05 ? true : mic < 0.025 ? false : speaking;
-      if (next !== speaking) {
-        speaking = next;
-        setUserSpeaking(next);
+      const now = performance.now();
+      if (player?.isActive()) lastActive = now;
+      const speaking = now - lastActive < 220; // brief hangover bridges buffer gaps
+      if (speaking !== agentOn) {
+        agentOn = speaking;
+        setAgentSpeaking(speaking);
       }
       rafRef.current = requestAnimationFrame(tick);
     };
@@ -88,12 +109,31 @@ export default function InterviewRoom() {
     if (el && showTranscript) el.scrollTop = el.scrollHeight;
   }, [transcript, showTranscript]);
 
+  // The candidate's mic is only live on their turn: it's auto-silenced the
+  // instant the interviewer starts talking, and restored when the interviewer
+  // finishes (unless the candidate manually muted). The only way to talk over
+  // the interviewer is the explicit "tap to interrupt" barge-in below.
+  useEffect(() => {
+    const live = phase === "live" && !muted && !agentSpeaking;
+    recorderRef.current?.setMuted(!live);
+  }, [phase, muted, agentSpeaking]);
+
   useEffect(() => () => teardown(), []);
 
   async function begin() {
     setError("");
     setPhase("connecting");
     endedRef.current = false;
+
+    // Persist the (optional) job description before the voice socket opens, so
+    // the server reads it into the interviewer's prompt on connect.
+    try {
+      if (jd.trim() !== (interview?.jdText || "")) {
+        await api.setInterviewJd(id, jd.trim());
+      }
+    } catch {
+      /* non-fatal: the interview still runs, just untailored to the JD */
+    }
 
     const player = new PcmPlayer();
     playerRef.current = player;
@@ -148,6 +188,7 @@ export default function InterviewRoom() {
       case "ready":
         everLiveRef.current = true;
         setPhase("live");
+        playInterviewSound(meta, "start"); // per-type "interview begins" chime
         break;
       case "transcript":
         // Deepgram emits one ConversationText per spoken segment (usually a
@@ -164,11 +205,10 @@ export default function InterviewRoom() {
         });
         break;
       case "state":
-        if (msg.value === "agent_speaking") setAgentSpeaking(true);
-        else if (msg.value === "user_speaking") {
-          playerRef.current?.interrupt(); // barge-in
-          setAgentSpeaking(false);
-        } else if (msg.value === "agent_done") setAgentSpeaking(false);
+        // `agentSpeaking` is derived from real client playback in the RAF loop
+        // (the server's agent_speaking/agent_done fire relative to streaming,
+        // not playback). Here we only honor a server-side barge-in.
+        if (msg.value === "user_speaking") playerRef.current?.interrupt();
         break;
       case "error":
         if (!everLiveRef.current) failConnection(msg.message || "Voice service error.");
@@ -209,6 +249,7 @@ export default function InterviewRoom() {
     recorderRef.current?.stop(); // stop capturing; keep the player alive to drain
     await new Promise((r) => setTimeout(r, 2200));
     teardown();
+    playInterviewSound(meta, "end"); // per-type "interview complete" chime
     try {
       await api.finishInterview(id);
     } catch {
@@ -231,6 +272,7 @@ export default function InterviewRoom() {
       }
     }
     teardown();
+    playInterviewSound(meta, "end"); // per-type "interview complete" chime
 
     try {
       await api.finishInterview(id);
@@ -251,25 +293,34 @@ export default function InterviewRoom() {
     wsRef.current = null;
   }
 
-  function toggleMute() {
-    const next = !muted;
-    recorderRef.current?.setMuted(next);
-    setMuted(next);
+  // The mic button does one of two jobs depending on whose turn it is:
+  //  • interviewer talking → "tap to interrupt": cut its audio and hand the
+  //    floor back to the candidate (also clears any manual mute).
+  //  • candidate's turn → normal mute / unmute toggle.
+  // The recorder's actual muted state is reconciled by the effect above.
+  function onMicClick() {
+    if (agentSpeaking) {
+      playerRef.current?.interrupt();
+      setAgentSpeaking(false);
+      if (muted) setMuted(false);
+    } else {
+      setMuted((m) => !m);
+    }
   }
 
   const mmss = `${String(Math.floor(elapsed / 60)).padStart(2, "0")}:${String(elapsed % 60).padStart(2, "0")}`;
   const lastTurn = transcript[transcript.length - 1];
+  const jdLen = jd.length;
+  // Mic is "live" whenever it's the candidate's turn — the interviewer isn't
+  // talking and they haven't manually muted. Drives the on-air chip.
+  const micLive = phase === "live" && !muted && !agentSpeaking;
 
   // ── Lobby / failed ──────────────────────────────────────────────────────
   if (phase === "lobby" || phase === "failed") {
     return (
       <div className="lobby">
         <div className="lobby-card fade-up">
-          <div className="blob lobby-blob" aria-hidden="true">
-            <div className="ring" />
-            <div className="ring r2" />
-            <div className="core" />
-          </div>
+          <VoiceOrb meta={meta} variant="lobby" />
           <h1>{meta.label} interview</h1>
           <p className="with">
             with {meta.interviewer} · AI interviewer · ~10 minutes · voice only
@@ -277,9 +328,49 @@ export default function InterviewRoom() {
           <ul className="lobby-tips">
             <li>Find a quiet spot — headphones help a lot.</li>
             <li>Just talk naturally. The interviewer listens and follows up on what you say.</li>
-            <li>You can interrupt the interviewer at any time, mid-sentence is fine.</li>
+            <li>Your mic mutes while the interviewer speaks — tap the mic to interrupt and jump in.</li>
             <li>End whenever you like — your feedback report is generated either way.</li>
           </ul>
+
+          <div className="lobby-setup">
+            <div className={`setup-status ${user?.hasResume ? "on" : ""}`}>
+              <span className="dot" />
+              {user?.hasResume ? (
+                <span>
+                  Personalized from your resume. The interviewer will reference your real work.
+                </span>
+              ) : (
+                <span>
+                  No resume on file — add one from the dashboard for questions tailored to your
+                  experience.
+                </span>
+              )}
+            </div>
+
+            {jdOpen ? (
+              <div className="jd-field">
+                <label htmlFor="jd">Tailor to a job description (optional)</label>
+                <textarea
+                  id="jd"
+                  value={jd}
+                  onChange={(e) => setJd(e.target.value)}
+                  placeholder="Paste the job description you're targeting."
+                  rows={5}
+                  maxLength={JD_MAX_CHARS}
+                />
+                <div className="jd-foot">
+                  <span className="subtle small">
+                    {jdLen.toLocaleString()} / {JD_MAX_CHARS.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <button type="button" className="jd-toggle" onClick={() => setJdOpen(true)}>
+                + Tailor to a job description
+              </button>
+            )}
+          </div>
+
           {error && <div className="lobby-error">{error}</div>}
           <button className="btn primary big block" onClick={begin} disabled={!interview}>
             {interview ? "Join interview" : "Loading…"}
@@ -310,24 +401,16 @@ export default function InterviewRoom() {
       </header>
 
       <main className="room-stage">
-        <div className="blob" ref={blobRef} aria-hidden="true">
-          <div className="ring" />
-          <div className="ring r2" />
-          <div className="core" />
-        </div>
+        <VoiceOrb meta={meta} ref={blobRef} />
 
         <div className="stage-id">
           <div className="name">{meta.interviewer}</div>
           <div className="status">
-            {phase === "connecting"
-              ? "Setting up your interview…"
-              : agentSpeaking
-                ? "Speaking…"
-                : "Listening to you"}
+            {phase === "connecting" ? "Setting up your interview…" : agentSpeaking ? "Speaking…" : ""}
           </div>
         </div>
 
-        <div className={`speaking-chip ${userSpeaking && !muted ? "on" : ""}`}>
+        <div className={`speaking-chip ${micLive ? "on" : ""}`}>
           <span className="eq">
             <i />
             <i />
@@ -351,13 +434,21 @@ export default function InterviewRoom() {
       <footer className="room-controls">
         <span className="ctl-wrap">
           <button
-            className={`ctl ${muted ? "muted" : ""}`}
-            onClick={toggleMute}
-            aria-label={muted ? "Unmute microphone" : "Mute microphone"}
+            className={`ctl mic ${agentSpeaking || muted ? "muted" : ""}`}
+            onClick={onMicClick}
+            aria-label={
+              agentSpeaking
+                ? "Tap to interrupt the interviewer"
+                : muted
+                  ? "Unmute microphone"
+                  : "Mute microphone"
+            }
           >
-            {muted ? <MicOffIcon /> : <MicIcon />}
+            {agentSpeaking || muted ? <MicOffIcon /> : <MicIcon />}
           </button>
-          <span className="ctl-label">{muted ? "Unmute" : "Mute"}</span>
+          <span className="ctl-label">
+            {agentSpeaking ? "Tap to interrupt" : muted ? "Unmute" : "Mute"}
+          </span>
         </span>
 
         <span className="ctl-wrap">

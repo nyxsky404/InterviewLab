@@ -1,43 +1,82 @@
-/* ── Design tokens ─────────────────────────────────────────────────────── */
+/* ── Design tokens — Vercel-inspired ink/canvas system ─────────────────────
+   Ink-near-black primary on a near-white canvas ladder, hairline borders,
+   stacked subtle shadows, and a multi-stop mesh gradient as the only
+   decorative chrome. Geometric sans (Inter) for everything narrative; a
+   monospaced face (JetBrains Mono) for the technical layer only. */
 :root {
-  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  /* Enable Inter's geometric alternates so it reads closer to the brand sans. */
+  --font-features: "ss01", "ss02", "cv01", "cv03", "cv04";
 
-  /* Light surface palette (dashboard, report, auth) */
-  --bg: #f7f7f8;
+  /* Surface ladder: canvas (cards) → soft (page) → soft-2 (inset) → ink (dark band) */
+  --bg: #fafafa;
   --surface: #ffffff;
-  --surface-2: #fafafa;
-  --border: #e6e7eb;
-  --border-strong: #d4d6dc;
-  --text: #16181d;
-  --text-2: #5c616b;
-  --text-3: #9aa0ab;
+  --surface-2: #f5f5f5;
+  --border: #ebebeb;
+  --border-strong: #a1a1a1;
 
-  --accent: #4f46e5;
-  --accent-strong: #4338ca;
-  --accent-soft: #eef2ff;
-  --accent-soft-2: #e0e7ff;
+  /* Ink + gray text scale */
+  --text: #171717;
+  --text-2: #4d4d4d;
+  --text-3: #888888;
 
-  --success: #16a34a;
-  --success-soft: #ecfdf3;
-  --warn: #d97706;
-  --warn-soft: #fffbeb;
-  --danger: #dc2626;
-  --danger-soft: #fef2f2;
+  /* The single ink primary carries every conversion target. */
+  --accent: #171717;
+  --accent-strong: #000000;
+  --accent-soft: #f5f5f5;
+  --accent-soft-2: #ebebeb;
 
-  --radius-s: 8px;
-  --radius: 12px;
-  --radius-l: 16px;
-  --shadow-s: 0 1px 2px rgb(16 18 25 / 0.05);
-  --shadow: 0 1px 3px rgb(16 18 25 / 0.07), 0 8px 24px -12px rgb(16 18 25 / 0.12);
-  --shadow-l: 0 4px 12px rgb(16 18 25 / 0.08), 0 24px 48px -16px rgb(16 18 25 / 0.18);
+  /* Semantics — drawn only from the brand palette (blue success, amber, red). */
+  --link: #0070f3;
+  --link-deep: #0761d1;
+  --success: #0070f3;
+  --success-soft: #e5f0ff;
+  --warn: #ab570a;
+  --warn-soft: #ffefcf;
+  --danger: #ee0000;
+  --danger-deep: #c50000;
+  --danger-soft: #f7d4d6;
 
-  /* Dark call-stage palette (interview room) */
-  --stage-bg: #0b0d12;
-  --stage-surface: #14171f;
-  --stage-surface-2: #1b1f29;
-  --stage-border: #262b37;
-  --stage-text: #eef0f4;
-  --stage-text-2: #9aa3b2;
+  /* Brand mesh-gradient stops (develop → preview → ship). The gradient is the
+     entire decorative system — used at hero scale only (voice blob, washes). */
+  --g-develop-a: #007cf0;
+  --g-develop-b: #00dfd8;
+  --g-preview-a: #7928ca;
+  --g-preview-b: #ff0080;
+  --g-ship-a: #ff4d4d;
+  --g-ship-b: #f9cb28;
+  --mesh: conic-gradient(
+    from 210deg at 50% 50%,
+    #007cf0,
+    #00dfd8,
+    #7928ca,
+    #ff0080,
+    #ff4d4d,
+    #f9cb28,
+    #007cf0
+  );
+
+  /* In-app radius scale — the brand's --geist-radius is 6px; cards step up. */
+  --radius-s: 6px;
+  --radius: 8px;
+  --radius-l: 12px;
+  --radius-xl: 16px;
+
+  /* Stacked, subtle elevation — never a single heavy drop. */
+  --ring: inset 0 0 0 1px rgb(0 0 0 / 0.08);
+  --shadow-s: 0 1px 1px rgb(0 0 0 / 0.02), 0 2px 2px rgb(0 0 0 / 0.04);
+  --shadow: 0 2px 2px rgb(0 0 0 / 0.04), 0 8px 16px -4px rgb(0 0 0 / 0.06);
+  --shadow-l: 0 1px 1px rgb(0 0 0 / 0.02), 0 8px 16px -4px rgb(0 0 0 / 0.06),
+    0 24px 32px -8px rgb(0 0 0 / 0.09);
+
+  /* Dark call-stage palette (interview room) — the ink polarity-flip. */
+  --stage-bg: #0a0a0a;
+  --stage-surface: #171717;
+  --stage-surface-2: #1f1f1f;
+  --stage-border: #2e2e2e;
+  --stage-text: #ededed;
+  --stage-text-2: #a1a1a1;
 }
 
 /* ── Base ──────────────────────────────────────────────────────────────── */
@@ -53,7 +92,8 @@ body,
 
 body {
   margin: 0;
-  font-family: var(--font);
+  font-family: var(--font-sans);
+  font-feature-settings: var(--font-features);
   font-size: 15px;
   line-height: 1.55;
   color: var(--text);
@@ -62,25 +102,31 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+::selection {
+  background: #171717;
+  color: #f2f2f2;
+}
+
+/* Sentence-case headlines with aggressive negative tracking — part of the voice. */
 h1,
 h2,
 h3 {
   margin: 0;
-  line-height: 1.25;
-  letter-spacing: -0.015em;
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -0.03em;
 }
 
 h1 {
-  font-size: 26px;
-  font-weight: 700;
+  font-size: 28px;
+  letter-spacing: -0.04em;
 }
 h2 {
-  font-size: 19px;
-  font-weight: 650;
+  font-size: 20px;
 }
 h3 {
   font-size: 15px;
-  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 p {
@@ -88,7 +134,7 @@ p {
 }
 
 a {
-  color: var(--accent);
+  color: var(--link);
   text-decoration: none;
 }
 a:hover {
@@ -108,35 +154,46 @@ a:hover {
   text-align: center;
 }
 
+/* Mono eyebrow — the voice of the technical layer. */
+.eyebrow {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--text-3);
+  text-transform: uppercase;
+}
+
 /* ── Buttons ───────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 9px 16px;
-  border: 1px solid var(--border-strong);
+  padding: 9px 15px;
+  border: 1px solid var(--border);
   border-radius: var(--radius-s);
   background: var(--surface);
   color: var(--text);
   font: inherit;
   font-size: 14px;
-  font-weight: 550;
+  font-weight: 500;
+  letter-spacing: -0.01em;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.05s ease,
-    box-shadow 0.15s ease;
+    box-shadow 0.15s ease, opacity 0.15s ease;
   user-select: none;
   white-space: nowrap;
 }
 .btn:hover {
-  background: var(--surface-2);
-  border-color: var(--text-3);
+  border-color: var(--border-strong);
 }
 .btn:active {
   transform: translateY(1px);
 }
 .btn:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
   transform: none;
 }
@@ -145,7 +202,6 @@ a:hover {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
-  box-shadow: var(--shadow-s);
 }
 .btn.primary:hover {
   background: var(--accent-strong);
@@ -158,8 +214,8 @@ a:hover {
   color: #fff;
 }
 .btn.danger:hover {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: var(--danger-deep);
+  border-color: var(--danger-deep);
 }
 
 .btn.ghost {
@@ -168,18 +224,17 @@ a:hover {
   color: var(--text-2);
 }
 .btn.ghost:hover {
-  background: rgb(16 18 25 / 0.05);
+  background: rgb(0 0 0 / 0.04);
   border-color: transparent;
   color: var(--text);
 }
 
 .btn.big {
-  padding: 12px 22px;
+  padding: 12px 20px;
   font-size: 15px;
-  border-radius: var(--radius-s);
 }
 .btn.small {
-  padding: 6px 12px;
+  padding: 6px 11px;
   font-size: 13px;
 }
 .btn.block {
@@ -191,15 +246,16 @@ label {
   display: block;
   margin: 16px 0 6px;
   font-size: 13px;
-  font-weight: 550;
-  color: var(--text-2);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--text);
 }
 
 input,
 select {
   width: 100%;
   padding: 10px 12px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: var(--radius-s);
   background: var(--surface);
   color: var(--text);
@@ -213,8 +269,8 @@ input::placeholder {
 input:focus,
 select:focus {
   outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft-2);
+  border-color: var(--text);
+  box-shadow: 0 0 0 3px rgb(0 0 0 / 0.08);
 }
 
 /* Segmented control (experience level picker) */
@@ -222,8 +278,8 @@ select:focus {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  gap: 4px;
-  padding: 4px;
+  gap: 3px;
+  padding: 3px;
   border: 1px solid var(--border);
   border-radius: var(--radius-s);
   background: var(--surface-2);
@@ -231,12 +287,12 @@ select:focus {
 .segmented button {
   padding: 7px 4px;
   border: none;
-  border-radius: 6px;
+  border-radius: 4px;
   background: transparent;
   color: var(--text-2);
   font: inherit;
   font-size: 13px;
-  font-weight: 550;
+  font-weight: 500;
   cursor: pointer;
   transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -246,44 +302,43 @@ select:focus {
 .segmented button.active {
   background: var(--surface);
   color: var(--text);
-  box-shadow: var(--shadow-s);
+  box-shadow: var(--shadow-s), var(--ring);
 }
 
 /* ── Shared bits ───────────────────────────────────────────────────────── */
 .card {
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius-l);
   padding: 24px;
-  box-shadow: var(--shadow-s);
+  box-shadow: var(--shadow-s), var(--ring);
 }
 
 .error-banner {
   margin-top: 14px;
   padding: 10px 14px;
-  border: 1px solid #fecaca;
   border-radius: var(--radius-s);
   background: var(--danger-soft);
-  color: var(--danger);
+  color: var(--danger-deep);
   font-size: 13.5px;
+  box-shadow: inset 0 0 0 1px rgb(238 0 0 / 0.14);
 }
 
 .brand {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
   color: var(--text);
 }
 .brand .brand-mark {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, var(--accent), #7c3aed);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: #171717;
   color: #fff;
   flex: none;
 }
@@ -303,7 +358,7 @@ select:focus {
   width: 22px;
   height: 22px;
   border: 2.5px solid var(--border);
-  border-top-color: var(--accent);
+  border-top-color: var(--text);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
@@ -327,4 +382,14 @@ select:focus {
 
 .fade-up {
   animation: fade-up 0.35s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

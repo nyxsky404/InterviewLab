@@ -1,4 +1,5 @@
-/* Interview room: dark, Meet/Zoom-style call stage. */
+/* Interview room: the ink polarity-flip — a dark, Meet/Zoom-style call stage
+   with the brand mesh gradient carried by the audio-reactive voice blob. */
 .room {
   position: fixed;
   inset: 0;
@@ -33,18 +34,20 @@
   gap: 7px;
   padding: 5px 12px;
   border: 1px solid var(--stage-border);
-  border-radius: 999px;
+  border-radius: 100px;
   background: var(--stage-surface);
   color: var(--stage-text-2);
-  font-size: 12.5px;
-  font-weight: 550;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 400;
+  letter-spacing: -0.01em;
 }
 
 .rec-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #ef4444;
+  background: #ee0000;
   animation: rec-blink 1.6s ease infinite;
 }
 @keyframes rec-blink {
@@ -70,89 +73,23 @@
   padding: 12px 20px;
 }
 
-/* The interviewer "tile": audio-reactive voice blob. --level is set from the
-   real TTS output level every animation frame. */
-.blob {
-  position: relative;
-  width: min(240px, 42vw);
-  aspect-ratio: 1;
-  display: grid;
-  place-items: center;
-}
-
-.blob .ring {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, rgb(99 102 241 / 0.5), rgb(124 58 237 / 0.18) 60%, transparent 72%);
-  filter: blur(2px);
-  transform: scale(calc(1 + var(--level, 0) * 0.5));
-  transition: transform 0.09s ease-out;
-}
-
-.blob .ring.r2 {
-  inset: 7%;
-  background: radial-gradient(circle at 60% 65%, rgb(139 92 246 / 0.45), rgb(79 70 229 / 0.2) 58%, transparent 74%);
-  transform: scale(calc(1 + var(--level, 0) * 0.32));
-  transition: transform 0.13s ease-out;
-}
-
-.blob .core {
-  position: relative;
-  width: 58%;
-  aspect-ratio: 1;
-  border-radius: 46% 54% 52% 48% / 52% 46% 54% 48%;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6 55%, #6d28d9);
-  box-shadow:
-    0 0 60px rgb(99 102 241 / 0.35),
-    inset 0 -14px 30px rgb(0 0 0 / 0.25),
-    inset 0 10px 24px rgb(255 255 255 / 0.18);
-  transform: scale(calc(1 + var(--level, 0) * 0.22));
-  transition: transform 0.08s ease-out;
-  animation: blob-morph 9s ease-in-out infinite alternate;
-}
-
-.room.listening .blob .core {
-  animation-duration: 13s;
-}
-
-@keyframes blob-morph {
-  0% {
-    border-radius: 46% 54% 52% 48% / 52% 46% 54% 48%;
-  }
-  33% {
-    border-radius: 54% 46% 44% 56% / 48% 56% 44% 52%;
-  }
-  66% {
-    border-radius: 48% 52% 56% 44% / 56% 44% 52% 48%;
-  }
-  100% {
-    border-radius: 52% 48% 46% 54% / 46% 54% 48% 52%;
-  }
-}
-
-/* Idle/connecting shimmer instead of level-driven motion */
-.room.connecting .blob .core {
-  animation: blob-morph 9s ease-in-out infinite alternate, blob-breathe 2.2s ease-in-out infinite;
-}
-@keyframes blob-breathe {
-  50% {
-    transform: scale(1.05);
-  }
-}
+/* The interviewer "tile" is the per-type VoiceOrb (see orb.css); it's dropped
+   straight into the stage flow, sized by --orb-size. */
 
 .stage-id {
   text-align: center;
 }
 .stage-id .name {
   font-size: 17px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 .stage-id .status {
   margin-top: 4px;
-  font-size: 13.5px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   color: var(--stage-text-2);
+  letter-spacing: -0.01em;
   min-height: 20px;
 }
 
@@ -162,11 +99,11 @@
   align-items: center;
   gap: 8px;
   padding: 5px 12px;
-  border-radius: 999px;
-  background: rgb(34 197 94 / 0.12);
-  color: #4ade80;
+  border-radius: 100px;
+  background: rgb(0 124 240 / 0.16);
+  color: #6cb2ff;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   opacity: 0;
   transition: opacity 0.2s ease;
 }
@@ -215,8 +152,8 @@
   max-width: 720px;
   width: fit-content;
   padding: 10px 16px;
-  border-radius: 12px;
-  background: rgb(20 23 31 / 0.88);
+  border-radius: var(--radius-l);
+  background: rgb(23 23 23 / 0.9);
   border: 1px solid var(--stage-border);
   backdrop-filter: blur(8px);
   font-size: 15px;
@@ -228,17 +165,18 @@
 .caption-bubble .speaker {
   display: block;
   margin-bottom: 2px;
-  font-size: 11.5px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--stage-text-2);
 }
 .caption-bubble.user .speaker {
-  color: #4ade80;
+  color: #6cb2ff;
 }
 .caption-bubble.assistant .speaker {
-  color: #a5b4fc;
+  color: #e0d4ff;
 }
 
 .caption-text .tok {
@@ -268,7 +206,7 @@
   transition: background 0.15s ease, transform 0.08s ease, border-color 0.15s ease;
 }
 .ctl:hover {
-  background: #232837;
+  background: #2a2a2a;
 }
 .ctl:active {
   transform: scale(0.94);
@@ -278,22 +216,25 @@
   cursor: not-allowed;
 }
 .ctl.active {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: rgb(255 255 255 / 0.16);
+  border-color: rgb(255 255 255 / 0.28);
+  color: #fff;
 }
+/* Muted, and "tap to interrupt" while the interviewer is talking, share one
+   look: a solid white mic-off button with a plain hover tooltip. */
 .ctl.muted {
   background: #fff;
   border-color: #fff;
-  color: #0b0d12;
+  color: #0a0a0a;
 }
 .ctl.end {
   width: 64px;
-  background: #dc2626;
-  border-color: #dc2626;
+  background: #ee0000;
+  border-color: #ee0000;
   color: #fff;
 }
 .ctl.end:hover {
-  background: #b91c1c;
+  background: #c50000;
 }
 
 .ctl-label {
@@ -302,6 +243,7 @@
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--stage-text-2);
   opacity: 0;
@@ -326,7 +268,7 @@
   flex-direction: column;
   border: 1px solid var(--stage-border);
   border-radius: var(--radius-l);
-  background: rgb(17 20 27 / 0.97);
+  background: rgb(20 20 20 / 0.97);
   backdrop-filter: blur(10px);
   box-shadow: var(--shadow-l);
   transform: translateX(calc(100% + 24px));
@@ -344,7 +286,8 @@
   padding: 14px 16px;
   border-bottom: 1px solid var(--stage-border);
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 .transcript-head button {
   border: none;
@@ -365,17 +308,18 @@
 }
 
 .t-line .t-who {
+  font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.04em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
   text-transform: uppercase;
   color: var(--stage-text-2);
 }
 .t-line.user .t-who {
-  color: #4ade80;
+  color: #6cb2ff;
 }
 .t-line.assistant .t-who {
-  color: #a5b4fc;
+  color: #e0d4ff;
 }
 .t-line .t-text {
   font-size: 13.5px;
@@ -390,35 +334,51 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  background:
-    radial-gradient(700px 400px at 50% -120px, rgb(79 70 229 / 0.18), transparent),
-    var(--stage-bg);
+  overflow: hidden;
+  background: var(--stage-bg);
   color: var(--stage-text);
+}
+/* Mesh-gradient atmospheric wash, hero scale, softened behind the card. */
+.lobby::before {
+  content: "";
+  position: absolute;
+  top: -220px;
+  left: 50%;
+  width: 720px;
+  height: 560px;
+  transform: translateX(-50%);
+  background: var(--mesh);
+  filter: blur(110px);
+  opacity: 0.28;
+  pointer-events: none;
 }
 
 .lobby-card {
+  position: relative;
   width: 100%;
   max-width: 460px;
   padding: 32px;
   border: 1px solid var(--stage-border);
-  border-radius: 20px;
-  background: var(--stage-surface);
+  border-radius: var(--radius-xl);
+  background: rgb(23 23 23 / 0.72);
+  backdrop-filter: blur(12px);
   box-shadow: var(--shadow-l);
   text-align: center;
 }
 
-.lobby-blob {
-  width: 120px;
+.lobby-card .orb.orb-compact {
   margin: 0 auto 18px;
 }
 
 .lobby-card h1 {
-  font-size: 21px;
+  font-size: 22px;
 }
 .lobby-card .with {
   margin-top: 6px;
-  font-size: 14px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
   color: var(--stage-text-2);
+  letter-spacing: -0.01em;
 }
 
 .lobby-tips {
@@ -443,11 +403,102 @@
   height: 6px;
   margin-top: 7px;
   border-radius: 50%;
-  background: var(--accent);
+  background: rgb(255 255 255 / 0.45);
+}
+
+/* ── Lobby setup (resume status + optional JD) ─────────────────────────── */
+.lobby-setup {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--stage-border);
+  text-align: left;
+}
+
+.setup-status {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--stage-text-2);
+}
+.setup-status .dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--stage-text-2);
+}
+.setup-status.on .dot {
+  background: #6cb2ff;
+  box-shadow: 0 0 0 3px rgb(0 124 240 / 0.2);
+}
+
+.jd-toggle {
+  margin-top: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--stage-text);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.jd-toggle:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+.jd-field {
+  margin-top: 12px;
+}
+.jd-field label {
+  margin: 0 0 6px;
+  color: var(--stage-text);
+}
+.jd-field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--stage-border);
+  border-radius: var(--radius-s);
+  background: rgb(10 10 10 / 0.6);
+  color: var(--stage-text);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.5;
+  resize: vertical;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.jd-field textarea::placeholder {
+  color: var(--stage-text-2);
+  opacity: 0.7;
+}
+.jd-field textarea:focus {
+  outline: none;
+  border-color: rgb(255 255 255 / 0.5);
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.1);
+}
+.jd-foot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+  min-height: 18px;
+}
+.jd-foot .subtle {
+  font-family: var(--font-mono);
 }
 
 .lobby-card .btn.primary {
   margin-top: 22px;
+  background: #fff;
+  border-color: #fff;
+  color: #0a0a0a;
+}
+.lobby-card .btn.primary:hover {
+  background: #ededed;
+  border-color: #ededed;
 }
 .lobby-card .btn.ghost {
   margin-top: 10px;
@@ -461,10 +512,10 @@
 .lobby-error {
   margin-top: 16px;
   padding: 10px 14px;
-  border: 1px solid rgb(239 68 68 / 0.35);
+  border: 1px solid rgb(238 0 0 / 0.35);
   border-radius: var(--radius-s);
-  background: rgb(239 68 68 / 0.08);
-  color: #fca5a5;
+  background: rgb(238 0 0 / 0.1);
+  color: #ff9a9a;
   font-size: 13.5px;
   text-align: left;
 }
@@ -475,7 +526,7 @@
   inset: 0;
   display: grid;
   place-items: center;
-  background: rgb(11 13 18 / 0.72);
+  background: rgb(10 10 10 / 0.74);
   backdrop-filter: blur(4px);
   z-index: 10;
 }
@@ -490,5 +541,5 @@
 }
 .room-ended .spinner {
   border-color: var(--stage-border);
-  border-top-color: var(--accent);
+  border-top-color: #fff;
 }

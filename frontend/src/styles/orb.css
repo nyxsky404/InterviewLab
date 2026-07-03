@@ -1,0 +1,141 @@
+/* ElevenLabs-style voice orb. A glossy sphere with flowing internal liquid and
+   an audio-reactive outer bloom. Per-type colors arrive as --o1..--o4 (base,
+   glow, highlight, shadow); --level (0..1) is the live output level set from JS.
+   Used by VoiceOrb.jsx in both the lobby and the live room. */
+.orb {
+  position: relative;
+  width: var(--orb-size, min(240px, 42vw));
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  --level: 0;
+}
+/* Compact variant for the lobby card. NB: don't name this ".lobby" — that
+   collides with the fixed, full-viewport .lobby page container and rips the
+   orb out of flow. */
+.orb.orb-compact {
+  --orb-size: 120px;
+}
+
+/* Outer bloom — swells and brightens with the agent's voice. */
+.orb-bloom {
+  position: absolute;
+  inset: -16%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, var(--o2) 0%, var(--o1) 32%, transparent 68%);
+  filter: blur(28px);
+  opacity: calc(0.34 + var(--level) * 0.6);
+  transform: scale(calc(0.88 + var(--level) * 0.9));
+  transition: transform 0.12s ease-out, opacity 0.12s ease-out;
+}
+
+/* The sphere body. */
+.orb-sphere {
+  position: relative;
+  width: 74%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  overflow: hidden;
+  isolation: isolate;
+  background: radial-gradient(circle at 32% 26%, var(--o3), var(--o1) 54%, var(--o4) 100%);
+  box-shadow:
+    inset 0 -24px 48px rgb(0 0 0 / 0.5),
+    inset 0 16px 36px rgb(255 255 255 / 0.28),
+    0 24px 64px -14px var(--o1);
+  transform: scale(calc(1 + var(--level) * 0.13));
+  transition: transform 0.08s ease-out;
+}
+
+/* Flowing internal liquid — three drifting blobs blended to "screen" give the
+   living, molten ElevenLabs look. */
+.orb-liquid {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(11px);
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+.orb-liquid.l1 {
+  inset: -10%;
+  background: radial-gradient(circle at 30% 30%, var(--o2), transparent 56%);
+  animation: orb-drift-a 7s ease-in-out infinite;
+}
+.orb-liquid.l2 {
+  inset: -6%;
+  background: radial-gradient(circle at 70% 62%, var(--o3), transparent 54%);
+  animation: orb-drift-b 9s ease-in-out infinite;
+}
+.orb-liquid.l3 {
+  inset: 0;
+  background: radial-gradient(circle at 55% 80%, var(--o2), transparent 52%);
+  opacity: 0.85;
+  animation: orb-drift-c 11s ease-in-out infinite;
+}
+
+/* Specular gloss for the glassy top-left highlight. */
+.orb-gloss {
+  position: absolute;
+  top: 7%;
+  left: 15%;
+  width: 46%;
+  height: 34%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, rgb(255 255 255 / 0.7), transparent 70%);
+  filter: blur(3px);
+}
+
+@keyframes orb-drift-a {
+  0%, 100% {
+    transform: translate(-6%, -4%) scale(1);
+  }
+  50% {
+    transform: translate(8%, 6%) scale(1.18);
+  }
+}
+@keyframes orb-drift-b {
+  0%, 100% {
+    transform: translate(6%, 4%) scale(1.1);
+  }
+  50% {
+    transform: translate(-8%, -6%) scale(0.9);
+  }
+}
+@keyframes orb-drift-c {
+  0%, 100% {
+    transform: translate(0, 6%) scale(0.95);
+  }
+  50% {
+    transform: translate(5%, -8%) scale(1.2);
+  }
+}
+
+/* The interviewer is talking → energize the flow. */
+.room.speaking .orb-liquid.l1 {
+  animation-duration: 3.4s;
+}
+.room.speaking .orb-liquid.l2 {
+  animation-duration: 4.2s;
+}
+.room.speaking .orb-liquid.l3 {
+  animation-duration: 5s;
+}
+
+/* Listening / connecting → calm, slow breathing. */
+.room.listening .orb-sphere {
+  animation: orb-breathe 5.5s ease-in-out infinite;
+}
+.room.connecting .orb-sphere {
+  animation: orb-breathe 2.4s ease-in-out infinite;
+}
+@keyframes orb-breathe {
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-liquid,
+  .orb-sphere {
+    animation: none !important;
+  }
+}

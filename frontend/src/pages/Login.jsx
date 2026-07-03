@@ -33,7 +33,8 @@ export default function Login() {
     <div className="auth-wrap">
       <Brand />
       <div className="card auth-card fade-up">
-        <h1>Welcome back</h1>
+        <span className="eyebrow">Sign in</span>
+        <h1>Welcome back.</h1>
         <p className="lede">Log in to practice your next interview.</p>
 
         <form onSubmit={submit}>

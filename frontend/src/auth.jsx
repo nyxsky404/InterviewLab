@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { api, getToken, setToken } from "./api.js";
+import { api } from "./api.js";
 
 const AuthContext = createContext(null);
 
@@ -7,31 +7,33 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session on load if a token is present.
+  // Restore session on load by asking the server — the auth cookie (if any)
+  // travels automatically with the request.
   useEffect(() => {
-    if (!getToken()) {
-      setLoading(false);
-      return;
-    }
     api
       .me()
       .then(({ user }) => setUser(user))
-      .catch(() => setToken(null))
+      .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
-  function onAuthed({ token, user }) {
-    setToken(token);
+  function onAuthed({ user }) {
     setUser(user);
   }
 
   function logout() {
-    setToken(null);
     setUser(null);
+    api.logout().catch(() => {});
+  }
+
+  // Merge server-confirmed profile fields back into the session user (used after
+  // a profile save so the dashboard reflects changes without a reload).
+  function updateUser(next) {
+    setUser((prev) => ({ ...prev, ...next }));
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, onAuthed, logout }}>
+    <AuthContext.Provider value={{ user, loading, onAuthed, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

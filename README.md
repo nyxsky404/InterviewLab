@@ -17,7 +17,7 @@ One interview type is built end-to-end and properly: **Behavioral**.
 cp .env.example .env          # 1. then paste your DEEPGRAM_API_KEY and set JWT_SECRET
 docker compose up -d          # 2. start PostgreSQL
 npm install                   # 3. install client + server (npm workspaces)
-npm run db:migrate            # 4. create the schema
+npm run db:migrate            # 4. create/update the Prisma schema
 npm run dev                   # 5. run Express (:4000) + Vite (:5173)
 ```
 
@@ -117,17 +117,18 @@ confirm against the [Deepgram pricing page](https://deepgram.com/pricing) for yo
 
 - **Frontend:** React (Vite), React Router, Web Audio API (AudioWorklet capture + streaming playback).
 - **Backend:** Node.js + Express, `ws` for the voice WebSocket proxy.
-- **Database:** PostgreSQL (`pg`), schema in `server/src/db/migrate.sql`.
+- **Database:** PostgreSQL through Prisma 6, schema in `backend/prisma/schema.prisma`.
 - **Auth:** email + password, bcrypt hashing, JWT (no OAuth). Candidates self-sign-up.
 - **Voice/AI:** Deepgram Voice Agent API (Nova-3 STT · managed Claude Sonnet 4 · Aura-2 TTS).
 
 ## Project structure
 
 ```
-server/src
-  config.js                 env + model config
-  index.js                  Express app + WS upgrade auth
-  db/                       pool, migrate.sql, migrate.js
+backend/
+  prisma/                   Prisma 6 schema and migrations
+  src/config/               env + model config
+  src/data/                 Prisma client + persistence functions
+  src/server.js             Express app + WS upgrade auth
   routes/                   auth.js, interviews.js
   middleware/auth.js        JWT guard
   prompts/interviewer.js    the interviewer "brain" (prompt + tool schemas)
