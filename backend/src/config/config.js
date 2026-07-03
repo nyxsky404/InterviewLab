@@ -22,7 +22,6 @@ export const config = {
   // live call evaluation
   graph: {
     enabled: process.env.GRAPH_DRIVEN !== "false", // default on
-    answerDebounceMs: Number(process.env.GRAPH_ANSWER_DEBOUNCE_MS || 1200),
     maxQuestions: Number(process.env.GRAPH_MAX_QUESTIONS || 9),
     model: process.env.GRAPH_MODEL || process.env.EVAL_MODEL || "openai/gpt-oss-120b",
     temperature: Number(process.env.GRAPH_TEMPERATURE || 0.5),

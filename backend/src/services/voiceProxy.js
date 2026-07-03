@@ -51,7 +51,6 @@ export function attachVoiceProxy(client, ctx) {
 
   let graphMode = config.graph.enabled;
   let answerBuffer = [];
-  let answerTimer = null;
   let graphBusy = false;
 
   prisma.transcription
@@ -148,7 +147,7 @@ export function attachVoiceProxy(client, ctx) {
           },
         });
         sendJson(client, { type: "transcript", role: msg.role, content: msg.content });
-        if (graphMode && msg.role === "user") scheduleGraphStep(msg.content);
+        if (graphMode && msg.role === "user") bufferUserSpeech(msg.content);
         break;
       }
 
@@ -156,8 +155,22 @@ export function attachVoiceProxy(client, ctx) {
         sendJson(client, { type: "state", value: "user_speaking" });
         break;
 
+      case "AgentThinking":
+        // Deepgram's endpointer has decided the candidate's turn is over and the
+        // agent is now processing it. This is the true end-of-turn boundary, so
+        // flush the whole answer as exactly ONE director step here — no matter how
+        // many pause-separated transcript segments it arrived in. Firing on this
+        // event (rather than a fixed timer) is also early enough to run the
+        // director while the agent is still thinking, so the directive can land
+        // before it speaks.
+        endUserTurn();
+        break;
+
       case "AgentStartedSpeaking":
         sendJson(client, { type: "state", value: "agent_speaking" });
+        // Backstop: if AgentThinking wasn't emitted, close out the turn here.
+        // A no-op when AgentThinking already flushed it (buffer is empty).
+        endUserTurn();
         if (closing) sawCloseSpeech = true;
         if (endCallInjected && !sawEndCallSpeech) {
           sawEndCallSpeech = true;
@@ -252,18 +265,25 @@ export function attachVoiceProxy(client, ctx) {
     if (dg.readyState === WebSocket.OPEN || dg.readyState === WebSocket.CONNECTING) dg.close();
   }
 
-  function scheduleGraphStep(text) {
-    if (completeSent) return;
+  // Accumulate the candidate's speech as pause-separated transcript segments
+  // arrive. We do NOT run the director here — the turn isn't over yet — we just
+  // collect until an end-of-turn signal (AgentThinking / AgentStartedSpeaking)
+  // flushes the whole answer as one step.
+  function bufferUserSpeech(text) {
+    if (closing || completeSent) return;
     if (text && text.trim()) answerBuffer.push(text.trim());
-    clearTimer(answerTimer);
-    answerTimer = setTimeout(runGraphStep, config.graph.answerDebounceMs);
+  }
+
+  function endUserTurn() {
+    if (!graphMode || closing || completeSent || wantEndCall) return;
+    runGraphStep();
   }
 
   async function runGraphStep() {
     if (graphBusy || completeSent || !graphMode) return;
     const answer = answerBuffer.join(" ").trim();
-    answerBuffer = [];
     if (!answer) return;
+    answerBuffer = [];
     graphBusy = true;
     try {
       const res = await orchestrator.submitAnswer(interviewId, answer);
@@ -284,7 +304,6 @@ export function attachVoiceProxy(client, ctx) {
       console.error("[voiceProxy] graph step failed:", err.message);
     } finally {
       graphBusy = false;
-      if (!completeSent && answerBuffer.length) scheduleGraphStep();
     }
   }
 
@@ -294,7 +313,7 @@ export function attachVoiceProxy(client, ctx) {
   }
 
   function directorClose(directive) {
-    if (pendingComplete || completeSent) return;
+    if (closing || pendingComplete || completeSent) return;
     console.log("[voiceProxy] director closing the interview");
     closing = true;
     sawCloseSpeech = false;
@@ -386,9 +405,8 @@ export function attachVoiceProxy(client, ctx) {
     clearTimer(endCallFallback);
     clearTimer(endCallCeiling);
     clearTimer(endCallRetry);
-    clearTimer(answerTimer);
     wrapTimer = postNudgeTimer = completeFallback = null;
-    maxDurationTimer = endCallFallback = endCallCeiling = endCallRetry = answerTimer = null;
+    maxDurationTimer = endCallFallback = endCallCeiling = endCallRetry = null;
   }
 
   function markAbandonedIfUnfinished() {
