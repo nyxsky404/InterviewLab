@@ -2,7 +2,6 @@
 
 Voice-only AI mock interview platform. You talk, an AI interviewer listens and responds in real time (native barge-in, no push-to-talk), and afterward you get a scored report with per-question review.
 
-> Screenshot: _add a screenshot of the interview room / report page here._
 
 ## Features
 
