@@ -26,31 +26,114 @@ Voice-only AI mock interview platform. You talk, an AI interviewer listens and r
 | Interview brain | LangGraph (`@langchain/langgraph`) + Groq (`gpt-oss-120b`) for live scoring/routing, with heuristic fallback |
 | Auth | JWT (`jsonwebtoken`) + `bcryptjs` |
 
-## Architecture
+# User Flow
 
+End-to-end journey a candidate takes through the app.
+
+flowchart TD
+    Start([Land on app]) --> HasAcct{Has account?}
+    HasAcct -- No --> Signup[Sign up: name, email,<br/>job role, experience]
+    HasAcct -- Yes --> Login[Log in]
+    Signup --> Dash
+    Login --> Dash
+
+    Dash[Dashboard: past interviews<br/>+ interview types]
+    Dash --> AddResume{Resume on<br/>profile?}
+    AddResume -- No, optional --> Profile[Add résumé + skills<br/>via Profile modal]
+    Profile --> Dash
+    AddResume -- Yes --> PickType
+
+    Dash --> PickType[Pick interview type:<br/>Behavioral · Technical ·<br/>System Design · HR]
+    PickType --> Lobby[Lobby: review résumé status,<br/>optionally paste Job Description]
+
+    Lobby --> Begin[Begin → create/patch interview,<br/>grant mic]
+    Begin --> Live[Live voice interview<br/>speak with AI interviewer]
+
+    Live --> Talk{Candidate turn}
+    Talk -- Answer --> Live
+    Talk -- Tap to interrupt --> Live
+    Talk -- End button --> Finish
+
+    Live --> AutoEnd[Agent wraps up /<br/>soft nudge / hard cap]
+    AutoEnd --> Finish[Finalize: drain audio,<br/>POST /finish]
+
+    Finish --> Report[Feedback report:<br/>score ring, per-competency,<br/>STAR, strengths, growth, timeline]
+    Report --> Dash
+    Report --> Retry[Start another interview] --> PickType
+
+# ER Diagram
+
+Relational model as defined in `backend/prisma/schema.prisma`.
+
+```mermaid
+erDiagram
+    USER ||--o{ INTERVIEW : "has many"
+    INTERVIEW ||--o{ TRANSCRIPTION : "has many"
+    INTERVIEW ||--o{ ASSESSMENT : "has many"
+    INTERVIEW ||--o| FEEDBACK : "has one"
+
+    USER {
+        int id PK
+        string email UK
+        string password_hash
+        string name
+        string job_role
+        string experience_level
+        string resume_text "nullable"
+        string skills "nullable"
+        int years_experience "nullable"
+        timestamptz created_at
+    }
+
+    INTERVIEW {
+        int id PK
+        int user_id FK
+        string type "default behavioral"
+        string status "in_progress|completed|abandoned"
+        timestamptz started_at
+        timestamptz ended_at "nullable"
+        string deepgram_request_id "nullable"
+        string jd_text "nullable"
+    }
+
+    TRANSCRIPTION {
+        int id PK
+        int interview_id FK
+        int seq
+        string role "user|assistant"
+        string content
+        timestamptz created_at
+    }
+
+    ASSESSMENT {
+        int id PK
+        int interview_id FK
+        string competency
+        string topic "nullable"
+        int score
+        string note "nullable"
+        timestamptz created_at
+    }
+
+    FEEDBACK {
+        int interview_id PK "FK, one-to-one"
+        int overall_score "nullable"
+        string summary "nullable"
+        string verdict "nullable"
+        json top_priorities
+        json per_competency
+        json strengths
+        json growth_areas
+        json star
+        json timeline
+        json exchanges
+        timestamptz created_at
+    }
 ```
-Browser (React)
-   │  mic PCM ──────────────────────────────┐
-   │  audio out ◄────────────────────────┐  │
-   │                                      │  │
-   ▼ REST (auth, interviews CRUD)         │  │
-Express API ──────────────► PostgreSQL    │  │
-   │                        (Prisma)      │  │
-   │                                      │  │
-   ▼ WS /api/interviews/:id/voice         │  │
-Voice Proxy (voiceProxy.js) ◄─────────────┘  │
-   │  raw `ws` (not the Deepgram SDK socket — │
-   │  it JSON-parses binary audio and breaks) │
-   ▼                                          │
-Deepgram Voice Agent ─────────────────────────┘
-   (STT Nova-3 → think.provider=anthropic → TTS Aura-2)
 
-LangGraph director (backend/src/langGraph/) runs alongside the proxy:
-evaluateAnswer → adjustDifficulty → decideRoute → generateQuestion | finalFeedback
-pushes next-question directives into the agent via UpdatePrompt.
-```
+**Cascade:** deleting a `User` cascades to their `Interview`s; deleting an `Interview`
+cascades to its `Transcription`s, `Assessment`s and `Feedback`.
 
-Key point: the Deepgram key and interview prompt live **only server-side**; the browser only ever talks to the Express proxy.
 
 ## Project Structure
 
