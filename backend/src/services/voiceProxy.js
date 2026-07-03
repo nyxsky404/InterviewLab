@@ -369,13 +369,7 @@ export function attachVoiceProxy(client, ctx) {
     completeSent = true;
     pendingComplete = false;
     console.log(`[voiceProxy] completing interview (${reason})`);
-    clearTimer(completeFallback);
-    clearTimer(wrapTimer);
-    clearTimer(postNudgeTimer);
-    clearTimer(maxDurationTimer);
-    clearTimer(endCallFallback);
-    clearTimer(endCallCeiling);
-    clearTimer(endCallRetry);
+    cleanup();
     sendJson(client, { type: "complete" });
     setTimeout(() => {
       if (dg.readyState === WebSocket.OPEN || dg.readyState === WebSocket.CONNECTING) dg.close();

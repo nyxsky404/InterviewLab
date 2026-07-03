@@ -1,22 +1,21 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: liveai-db
+    container_name: interviewlab-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: liveai
-      POSTGRES_PASSWORD: liveai
-      POSTGRES_DB: liveai
+      POSTGRES_USER: interviewlab
+      POSTGRES_PASSWORD: interviewlab
+      POSTGRES_DB: interviewlab
     ports:
-      # Host 5433 -> container 5432, to avoid clashing with a local Postgres.
       - "5433:5432"
     volumes:
-      - liveai_pgdata:/var/lib/postgresql/data
+      - interviewlab_pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U liveai -d liveai"]
+      test: ["CMD-SHELL", "pg_isready -U interviewlab -d interviewlab"]
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  liveai_pgdata:
+  interviewlab_pgdata:

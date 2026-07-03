@@ -2,6 +2,22 @@ import { Prisma } from "@prisma/client";
 import { config } from "../config/config.js";
 import { prisma } from "../data/prisma.js";
 import { getInterviewTypeConfig, getTopicLabels } from "../domain/interviewTypes.js";
+import { clampInt } from "../utils/clamp.js";
+
+// Flatten an interview (+ its user) into the context the evaluators expect.
+function buildUserContext(interview) {
+  if (!interview) return null;
+  return {
+    type: interview.type,
+    jdText: interview.jdText,
+    name: interview.user.name,
+    jobRole: interview.user.jobRole,
+    experienceLevel: interview.user.experienceLevel,
+    resumeText: interview.user.resumeText,
+    skills: interview.user.skills,
+    yearsExperience: interview.user.yearsExperience,
+  };
+}
 
 // Insert one live rubric judgment (called from the record_assessment tool).
 // The topic is validated against the interview type's rubric so a hallucinated
@@ -119,23 +135,12 @@ export async function finalizeInterview(interviewId) {
     }
   }
 
+  // Only the type is needed on the fallback path — no user join required.
   const interview = await prisma.interview.findUnique({
     where: { id },
-    include: { user: true },
+    select: { type: true },
   });
-  const ctx = interview
-    ? {
-        type: interview.type,
-        jdText: interview.jdText,
-        name: interview.user.name,
-        jobRole: interview.user.jobRole,
-        experienceLevel: interview.user.experienceLevel,
-        resumeText: interview.user.resumeText,
-        skills: interview.user.skills,
-        yearsExperience: interview.user.yearsExperience,
-      }
-    : null;
-  const type = ctx?.type;
+  const type = interview?.type;
   const competencyRows = await prisma.assessment.groupBy({
     by: ["competency"],
     where: { interviewId: id },
@@ -201,18 +206,7 @@ async function evaluateAndSave(interviewId) {
     }),
   ]);
   if (!transcriptions.length) return null;
-  const userContext = ctx
-    ? {
-        type: ctx.type,
-        jdText: ctx.jdText,
-        name: ctx.user.name,
-        jobRole: ctx.user.jobRole,
-        experienceLevel: ctx.user.experienceLevel,
-        resumeText: ctx.user.resumeText,
-        skills: ctx.user.skills,
-        yearsExperience: ctx.user.yearsExperience,
-      }
-    : null;
+  const userContext = buildUserContext(ctx);
 
   // Dynamic import avoids a static circular dependency (the evaluator imports
   // the shared TOPIC_META / STAR_PHASES shapes from this module).
@@ -222,33 +216,22 @@ async function evaluateAndSave(interviewId) {
     user: userContext,
     type: userContext?.type,
   });
+  const data = {
+    overallScore: clampInt(report.overall_score, 0, 100),
+    summary: report.summary || "",
+    verdict: report.verdict || "",
+    topPriorities: report.top_priorities || [],
+    perCompetency: report.per_competency || [],
+    strengths: report.strengths || [],
+    growthAreas: report.growth_areas || [],
+    star: report.star || [],
+    timeline: report.timeline || [],
+    exchanges: report.exchanges || [],
+  };
   return prisma.feedback.upsert({
     where: { interviewId: id },
-    create: {
-      interviewId: id,
-      overallScore: clampInt(report.overall_score, 0, 100),
-      summary: report.summary || "",
-      verdict: report.verdict || "",
-      topPriorities: report.top_priorities || [],
-      perCompetency: report.per_competency || [],
-      strengths: report.strengths || [],
-      growthAreas: report.growth_areas || [],
-      star: report.star || [],
-      timeline: report.timeline || [],
-      exchanges: report.exchanges || [],
-    },
-    update: {
-      overallScore: clampInt(report.overall_score, 0, 100),
-      summary: report.summary || "",
-      verdict: report.verdict || "",
-      topPriorities: report.top_priorities || [],
-      perCompetency: report.per_competency || [],
-      strengths: report.strengths || [],
-      growthAreas: report.growth_areas || [],
-      star: report.star || [],
-      timeline: report.timeline || [],
-      exchanges: report.exchanges || [],
-    },
+    create: { interviewId: id, ...data },
+    update: data,
   });
 }
 
@@ -338,10 +321,4 @@ export function derivePriorities(perCompetency, type) {
     .sort((a, b) => a.score - b.score)
     .slice(0, 3)
     .map((c) => tips[c.competency] || `Strengthen your ${humanizeCompetency(c.competency)}.`);
-}
-
-function clampInt(n, min, max) {
-  const v = Math.round(Number(n));
-  if (Number.isNaN(v)) return null;
-  return Math.min(max, Math.max(min, v));
 }

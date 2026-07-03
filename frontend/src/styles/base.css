@@ -1,33 +1,23 @@
-/* ── Design tokens — Vercel-inspired ink/canvas system ─────────────────────
-   Ink-near-black primary on a near-white canvas ladder, hairline borders,
-   stacked subtle shadows, and a multi-stop mesh gradient as the only
-   decorative chrome. Geometric sans (Inter) for everything narrative; a
-   monospaced face (JetBrains Mono) for the technical layer only. */
 :root {
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-  /* Enable Inter's geometric alternates so it reads closer to the brand sans. */
   --font-features: "ss01", "ss02", "cv01", "cv03", "cv04";
 
-  /* Surface ladder: canvas (cards) → soft (page) → soft-2 (inset) → ink (dark band) */
   --bg: #fafafa;
   --surface: #ffffff;
   --surface-2: #f5f5f5;
   --border: #ebebeb;
   --border-strong: #a1a1a1;
 
-  /* Ink + gray text scale */
   --text: #171717;
   --text-2: #4d4d4d;
   --text-3: #888888;
 
-  /* The single ink primary carries every conversion target. */
   --accent: #171717;
   --accent-strong: #000000;
   --accent-soft: #f5f5f5;
   --accent-soft-2: #ebebeb;
 
-  /* Semantics — drawn only from the brand palette (blue success, amber, red). */
   --link: #0070f3;
   --link-deep: #0761d1;
   --success: #0070f3;
@@ -38,8 +28,6 @@
   --danger-deep: #c50000;
   --danger-soft: #f7d4d6;
 
-  /* Brand mesh-gradient stops (develop → preview → ship). The gradient is the
-     entire decorative system — used at hero scale only (voice blob, washes). */
   --g-develop-a: #007cf0;
   --g-develop-b: #00dfd8;
   --g-preview-a: #7928ca;
@@ -57,20 +45,17 @@
     #007cf0
   );
 
-  /* In-app radius scale — the brand's --geist-radius is 6px; cards step up. */
   --radius-s: 6px;
   --radius: 8px;
   --radius-l: 12px;
   --radius-xl: 16px;
 
-  /* Stacked, subtle elevation — never a single heavy drop. */
   --ring: inset 0 0 0 1px rgb(0 0 0 / 0.08);
   --shadow-s: 0 1px 1px rgb(0 0 0 / 0.02), 0 2px 2px rgb(0 0 0 / 0.04);
   --shadow: 0 2px 2px rgb(0 0 0 / 0.04), 0 8px 16px -4px rgb(0 0 0 / 0.06);
   --shadow-l: 0 1px 1px rgb(0 0 0 / 0.02), 0 8px 16px -4px rgb(0 0 0 / 0.06),
     0 24px 32px -8px rgb(0 0 0 / 0.09);
 
-  /* Dark call-stage palette (interview room) — the ink polarity-flip. */
   --stage-bg: #0a0a0a;
   --stage-surface: #171717;
   --stage-surface-2: #1f1f1f;
@@ -79,7 +64,7 @@
   --stage-text-2: #a1a1a1;
 }
 
-/* ── Base ──────────────────────────────────────────────────────────────── */
+/* Base */
 * {
   box-sizing: border-box;
 }
@@ -107,7 +92,6 @@ body {
   color: #f2f2f2;
 }
 
-/* Sentence-case headlines with aggressive negative tracking — part of the voice. */
 h1,
 h2,
 h3 {
@@ -154,7 +138,6 @@ a:hover {
   text-align: center;
 }
 
-/* Mono eyebrow — the voice of the technical layer. */
 .eyebrow {
   display: inline-block;
   font-family: var(--font-mono);
@@ -165,7 +148,7 @@ a:hover {
   text-transform: uppercase;
 }
 
-/* ── Buttons ───────────────────────────────────────────────────────────── */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -241,7 +224,7 @@ a:hover {
   width: 100%;
 }
 
-/* ── Forms ─────────────────────────────────────────────────────────────── */
+/* Forms */
 label {
   display: block;
   margin: 16px 0 6px;
@@ -273,7 +256,6 @@ select:focus {
   box-shadow: 0 0 0 3px rgb(0 0 0 / 0.08);
 }
 
-/* Segmented control (experience level picker) */
 .segmented {
   display: grid;
   grid-auto-flow: column;
@@ -305,7 +287,7 @@ select:focus {
   box-shadow: var(--shadow-s), var(--ring);
 }
 
-/* ── Shared bits ───────────────────────────────────────────────────────── */
+/* Shared bits */
 .card {
   background: var(--surface);
   border-radius: var(--radius-l);
@@ -346,7 +328,6 @@ select:focus {
   display: block;
 }
 
-/* Full-page centered states (loading, fatal errors) */
 .page-center {
   min-height: 100vh;
   display: grid;

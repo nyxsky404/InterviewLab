@@ -1,7 +1,3 @@
-/* ElevenLabs-style voice orb. A glossy sphere with flowing internal liquid and
-   an audio-reactive outer bloom. Per-type colors arrive as --o1..--o4 (base,
-   glow, highlight, shadow); --level (0..1) is the live output level set from JS.
-   Used by VoiceOrb.jsx in both the lobby and the live room. */
 .orb {
   position: relative;
   width: var(--orb-size, min(240px, 42vw));
@@ -10,14 +6,10 @@
   place-items: center;
   --level: 0;
 }
-/* Compact variant for the lobby card. NB: don't name this ".lobby" — that
-   collides with the fixed, full-viewport .lobby page container and rips the
-   orb out of flow. */
 .orb.orb-compact {
   --orb-size: 120px;
 }
 
-/* Outer bloom — swells and brightens with the agent's voice. */
 .orb-bloom {
   position: absolute;
   inset: -16%;
@@ -29,7 +21,6 @@
   transition: transform 0.12s ease-out, opacity 0.12s ease-out;
 }
 
-/* The sphere body. */
 .orb-sphere {
   position: relative;
   width: 74%;
@@ -46,8 +37,6 @@
   transition: transform 0.08s ease-out;
 }
 
-/* Flowing internal liquid — three drifting blobs blended to "screen" give the
-   living, molten ElevenLabs look. */
 .orb-liquid {
   position: absolute;
   border-radius: 50%;
@@ -72,7 +61,6 @@
   animation: orb-drift-c 11s ease-in-out infinite;
 }
 
-/* Specular gloss for the glassy top-left highlight. */
 .orb-gloss {
   position: absolute;
   top: 7%;
@@ -109,7 +97,6 @@
   }
 }
 
-/* The interviewer is talking → energize the flow. */
 .room.speaking .orb-liquid.l1 {
   animation-duration: 3.4s;
 }
@@ -120,7 +107,6 @@
   animation-duration: 5s;
 }
 
-/* Listening / connecting → calm, slow breathing. */
 .room.listening .orb-sphere {
   animation: orb-breathe 5.5s ease-in-out infinite;
 }

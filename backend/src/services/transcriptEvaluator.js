@@ -1,5 +1,6 @@
 import { config } from "../config/config.js";
 import { getInterviewTypeConfig, getTopicLabels } from "../domain/interviewTypes.js";
+import { clampInt as clamp } from "../utils/clamp.js";
 
 // Post-call report generation. Reads the FULL transcript once the interview
 // ends and returns the structured feedback. The LLM supplies judgments only —
@@ -285,11 +286,6 @@ function buildTopicLookup(labels) {
   return (item) => (item == null ? null : map.get(norm(item)) || null);
 }
 
-function clamp(n, min, max) {
-  const v = Math.round(Number(n));
-  if (Number.isNaN(v)) return null;
-  return Math.min(max, Math.max(min, v));
-}
 function str(v) {
   return typeof v === "string" ? v.trim() : "";
 }

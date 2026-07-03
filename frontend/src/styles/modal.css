@@ -1,4 +1,4 @@
-/* ── Modal (profile editor) ────────────────────────────────────────────── */
+/* Modal (profile editor) */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -60,7 +60,6 @@
   padding: 4px 24px 20px;
   overflow-y: auto;
 }
-/* First label in the body shouldn't add extra top margin. */
 .modal-body > label:first-child,
 .modal-body > .field-row:first-child label {
   margin-top: 14px;
@@ -75,7 +74,6 @@
   max-width: 160px;
 }
 
-/* Shared textarea styling (matches inputs from base.css). */
 textarea {
   width: 100%;
   padding: 10px 12px;

@@ -7,8 +7,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Restore session on load by asking the server — the auth cookie (if any)
-  // travels automatically with the request.
   useEffect(() => {
     api
       .me()
@@ -25,9 +23,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     api.logout().catch(() => {});
   }
-
-  // Merge server-confirmed profile fields back into the session user (used after
-  // a profile save so the dashboard reflects changes without a reload).
+  
   function updateUser(next) {
     setUser((prev) => ({ ...prev, ...next }));
   }

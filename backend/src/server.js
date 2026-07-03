@@ -9,9 +9,6 @@ import { attachVoiceProxy } from "./services/voiceProxy.js";
 
 const server = http.createServer(createApp());
 
-// Voice WebSocket: /api/interviews/:id/voice
-// Auth travels via the httpOnly "token" cookie (same-origin, sent automatically
-// on the upgrade request) — we authenticate before the socket is accepted.
 const wss = new WebSocketServer({ noServer: true });
 
 server.on("upgrade", async (req, socket, head) => {

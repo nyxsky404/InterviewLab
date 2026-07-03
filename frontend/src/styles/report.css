@@ -1,4 +1,3 @@
-/* Feedback report: light, editorial, scannable. */
 .report {
   max-width: 880px;
   margin: 0 auto;
@@ -18,7 +17,7 @@
   margin-bottom: 16px;
 }
 
-/* ── Hero: score ring + summary ────────────────────────────────────────── */
+/* Hero: score ring + summary */
 .hero {
   display: flex;
   gap: 28px;
@@ -119,7 +118,7 @@
   }
 }
 
-/* ── Verdict — the one card that carries a mesh-gradient edge. ──────────── */
+/* Verdict */
 .verdict-card {
   position: relative;
   overflow: hidden;
@@ -145,7 +144,7 @@
   line-height: 1.65;
 }
 
-/* ── Priorities ────────────────────────────────────────────────────────── */
+/* Priorities */
 .priorities {
   margin: 12px 0 0;
   padding: 0;
@@ -173,7 +172,7 @@
   font-weight: 500;
 }
 
-/* ── Two-column grid ───────────────────────────────────────────────────── */
+/* Two-column grid */
 .report-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -186,7 +185,7 @@
   }
 }
 
-/* ── Competency bars ───────────────────────────────────────────────────── */
+/* Competency bars */
 .bar-row {
   padding: 12px 0;
 }
@@ -237,7 +236,7 @@
   font-style: italic;
 }
 
-/* ── Phases (stars) + timeline ─────────────────────────────────────────── */
+/* Phases (stars) + timeline */
 .phase-row {
   display: flex;
   align-items: center;
@@ -297,7 +296,7 @@
   box-shadow: none;
 }
 
-/* ── Question-by-question review ───────────────────────────────────────── */
+/* Question-by-question review */
 .exchange {
   padding: 16px 0;
 }
@@ -361,7 +360,7 @@
   font-weight: 500;
 }
 
-/* ── Strengths / growth ────────────────────────────────────────────────── */
+/* Strengths / growth */
 .feedback-list {
   margin: 10px 0 0;
   padding: 0;
@@ -396,7 +395,7 @@
   color: var(--warn);
 }
 
-/* ── Delivery metrics ──────────────────────────────────────────────────── */
+/* Delivery metrics */
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -422,7 +421,7 @@
   color: var(--text-3);
 }
 
-/* ── Transcript ────────────────────────────────────────────────────────── */
+/* Transcript */
 .transcript-details summary {
   cursor: pointer;
   font-size: 15px;

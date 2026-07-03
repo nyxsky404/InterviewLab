@@ -30,10 +30,7 @@ export default function Dashboard() {
       setStartingType(null);
     }
   }
-
-  // Abandoned sessions can't be resumed (the interviewer has no memory of the
-  // dropped call), so this starts a brand-new interview of the same type
-  // rather than reopening the stale one.
+  
   async function startOver(typeId) {
     setError("");
     try {

@@ -1,4 +1,3 @@
-// Thin fetch wrapper that sends the httpOnly auth cookie and unwraps JSON / errors.
 async function request(path, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
 

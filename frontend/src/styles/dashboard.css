@@ -1,4 +1,3 @@
-/* Dashboard: app topbar, interview type picker, session history. */
 .shell {
   max-width: 980px;
   margin: 0 auto;
@@ -64,7 +63,7 @@
   color: var(--text-3);
 }
 
-/* ── Personalize (add-resume) banner ───────────────────────────────────── */
+/* Personalize (add-resume) banner */
 .personalize-banner {
   position: relative;
   display: flex;
@@ -81,7 +80,6 @@
   cursor: pointer;
   transition: box-shadow 0.15s ease, transform 0.15s ease;
 }
-/* A slim mesh-gradient edge signals "this is the branded upsell". */
 .personalize-banner::before {
   content: "";
   position: absolute;
@@ -138,7 +136,7 @@
   color: var(--text-2);
 }
 
-/* ── Interview type cards ──────────────────────────────────────────────── */
+/* Interview type cards */
 .type-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -199,7 +197,7 @@
   letter-spacing: -0.01em;
 }
 
-/* ── Session history ───────────────────────────────────────────────────── */
+/* Session history */
 .session-list {
   border-radius: var(--radius-l);
   background: var(--surface);

@@ -1,5 +1,3 @@
-/* Interview room: the ink polarity-flip — a dark, Meet/Zoom-style call stage
-   with the brand mesh gradient carried by the audio-reactive voice blob. */
 .room {
   position: fixed;
   inset: 0;
@@ -9,7 +7,7 @@
   color: var(--stage-text);
 }
 
-/* ── Top bar ───────────────────────────────────────────────────────────── */
+/* Top bar */
 .room-top {
   display: flex;
   align-items: center;
@@ -61,7 +59,7 @@
   color: var(--stage-text);
 }
 
-/* ── Stage ─────────────────────────────────────────────────────────────── */
+/* Stage */
 .room-stage {
   flex: 1;
   min-height: 0;
@@ -72,9 +70,6 @@
   gap: 26px;
   padding: 12px 20px;
 }
-
-/* The interviewer "tile" is the per-type VoiceOrb (see orb.css); it's dropped
-   straight into the stage flow, sized by --orb-size. */
 
 .stage-id {
   text-align: center;
@@ -93,7 +88,6 @@
   min-height: 20px;
 }
 
-/* "You're speaking" chip under the blob */
 .speaking-chip {
   display: inline-flex;
   align-items: center;
@@ -139,7 +133,7 @@
   }
 }
 
-/* ── Captions (Meet-style) ─────────────────────────────────────────────── */
+/* Captions (Meet-style) */
 .captions {
   min-height: 84px;
   display: flex;
@@ -184,7 +178,7 @@
   display: inline;
 }
 
-/* ── Control bar ───────────────────────────────────────────────────────── */
+/* Control bar */
 .room-controls {
   display: flex;
   align-items: center;
@@ -220,8 +214,6 @@
   border-color: rgb(255 255 255 / 0.28);
   color: #fff;
 }
-/* Muted, and "tap to interrupt" while the interviewer is talking, share one
-   look: a solid white mic-off button with a plain hover tooltip. */
 .ctl.muted {
   background: #fff;
   border-color: #fff;
@@ -257,7 +249,7 @@
   opacity: 1;
 }
 
-/* ── Transcript side panel ─────────────────────────────────────────────── */
+/* Transcript side panel */
 .transcript-panel {
   position: absolute;
   top: 12px;
@@ -327,7 +319,7 @@
   line-height: 1.5;
 }
 
-/* ── Lobby (pre-join) ──────────────────────────────────────────────────── */
+/* Lobby (pre-join) */
 .lobby {
   position: fixed;
   inset: 0;
@@ -338,7 +330,6 @@
   background: var(--stage-bg);
   color: var(--stage-text);
 }
-/* Mesh-gradient atmospheric wash, hero scale, softened behind the card. */
 .lobby::before {
   content: "";
   position: absolute;
@@ -406,7 +397,7 @@
   background: rgb(255 255 255 / 0.45);
 }
 
-/* ── Lobby setup (resume status + optional JD) ─────────────────────────── */
+/* Lobby setup (resume status + optional JD) */
 .lobby-setup {
   margin-top: 18px;
   padding-top: 16px;

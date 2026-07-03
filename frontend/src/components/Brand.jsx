@@ -1,4 +1,3 @@
-// Product mark + wordmark, used on every page header.
 export default function Brand() {
   return (
     <span className="brand">
