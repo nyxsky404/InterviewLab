@@ -152,8 +152,8 @@ export default function Report() {
     return (
       <div className="page-center">
         <div className="card report-empty">
-          <h2>No conversation yet</h2>
-          <p>This session ended before any conversation happened, so there's nothing to review.</p>
+          <h2>No interview to review.</h2>
+          <p>This interview ended before any conversation was recorded.</p>
           <button className="btn primary" onClick={() => navigate("/")}>
             Back to dashboard
           </button>
@@ -196,12 +196,12 @@ export default function Report() {
               {durationMin && <span>{durationMin} min</span>}
             </div>
             <h1>
-              Feedback report.
+              Your interview report.
               {band && <span className={`band-pill ${band.tone}`}>{band.label}</span>}
             </h1>
             <p className="summary">
               {feedback?.summary ||
-                "The written evaluation isn't available for this session — the breakdown below is built from the interviewer's live assessments."}
+                "The written summary isn't available for this session, but your interview was still scored below."}
             </p>
           </div>
         </div>
@@ -209,14 +209,14 @@ export default function Report() {
 
       {feedback?.verdict && (
         <section className="card verdict-card fade-up">
-          <div className="verdict-head">Hiring manager verdict</div>
+          <div className="verdict-head">Overall verdict</div>
           <p className="verdict-body">{feedback.verdict}</p>
         </section>
       )}
 
       {feedback?.topPriorities?.length > 0 && (
         <section className="card fade-up">
-          <h3>What to fix first</h3>
+          <h3>Improve these first</h3>
           <p className="hint">In order of impact on your next interview.</p>
           <ol className="priorities">
             {feedback.topPriorities.slice(0, 3).map((p, i) => (
@@ -230,9 +230,9 @@ export default function Report() {
       )}
 
       <div className="report-grid">
-        {/* Competency breakdown */}
+        {/* Skills breakdown */}
         <section className="card">
-          <h3>Competency breakdown</h3>
+          <h3>Skills breakdown</h3>
           <p className="hint">Scored 1–5 against a {meta.label.toLowerCase()} rubric.</p>
           {(rubric?.competencies || []).map((c) => {
             const entry = scoreMap[c.key];
@@ -277,7 +277,7 @@ export default function Report() {
 
           {timeline.length > 0 && (
             <section className="card">
-              <h3>Topics explored</h3>
+              <h3>What you covered</h3>
               <p className="hint">What the interviewer got to — and what it didn't.</p>
               <div className="timeline-chips">
                 {timeline.map((t) => (
@@ -291,10 +291,10 @@ export default function Report() {
         </div>
       </div>
 
-      {/* Question-by-question review from the transcript evaluator. */}
+      {/* Answer review from the transcript evaluator. */}
       {exchanges.length > 0 && (
         <section className="card fade-up">
-          <h3>Question-by-question review</h3>
+          <h3>Answer review</h3>
           <p className="hint">Every substantive exchange, rated with a concrete improvement.</p>
           {exchanges.map((e, i) => (
             <div key={i} className="exchange">
@@ -317,24 +317,24 @@ export default function Report() {
 
       <div className="report-grid">
         <section className="card">
-          <h3>Strengths</h3>
+          <h3>What went well</h3>
           <FeedbackList items={feedback?.strengths} empty="No strengths captured." icon="✓" tone="pos" />
         </section>
         <section className="card">
-          <h3>Growth areas</h3>
+          <h3>Next to improve</h3>
           <FeedbackList items={feedback?.growthAreas} empty="No growth areas captured." icon="→" tone="neg" />
         </section>
       </div>
 
       {metrics && metrics.answersGiven > 0 && (
         <section className="card fade-up">
-          <h3>Delivery</h3>
+          <h3>Speaking style</h3>
           <p className="hint">Measured from your transcript — nothing here is estimated.</p>
           <div className="metrics-grid">
-            <Metric value={`${metrics.talkRatio}%`} label="Your share of the talking" />
+            <Metric value={`${metrics.talkRatio}%`} label="Talk time" />
             <Metric value={metrics.answersGiven} label="Answers given" />
-            <Metric value={`${metrics.avgAnswerWords}`} label="Avg words per answer" />
-            <Metric value={metrics.quantifiedAnswers} label="Answers citing numbers" />
+            <Metric value={`${metrics.avgAnswerWords}`} label="Avg answer length" />
+            <Metric value={metrics.quantifiedAnswers} label="Answers with numbers" />
             <Metric value={metrics.fillerWords} label="Filler words" />
             <Metric value={`${metrics.fillerRate}%`} label="Filler rate" />
           </div>
@@ -343,7 +343,7 @@ export default function Report() {
 
       <section className="card">
         <details className="transcript-details">
-          <summary>Full transcript ({mergedTranscriptions.length} turns)</summary>
+          <summary>Interview transcript ({mergedTranscriptions.length} turns)</summary>
           <div className="report-transcript">
             {mergedTranscriptions.length === 0 ? (
               <p className="muted">No conversation was recorded.</p>

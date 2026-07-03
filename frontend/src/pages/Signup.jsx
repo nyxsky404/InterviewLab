@@ -47,7 +47,7 @@ export default function Signup() {
       <div className="card auth-card fade-up">
         <span className="eyebrow">Get started</span>
         <h1>Create your account.</h1>
-        <p className="lede">A quick profile lets the interviewer tailor its questions to you.</p>
+        <p className="lede">Tell us a little about yourself so every interview feels relevant.</p>
 
         <form onSubmit={submit}>
           <label htmlFor="name">Full name</label>
@@ -100,7 +100,7 @@ export default function Signup() {
             type="password"
             value={form.password}
             onChange={set("password")}
-            placeholder="At least 6 characters"
+            placeholder="6+ characters"
             autoComplete="new-password"
             required
           />
@@ -108,7 +108,7 @@ export default function Signup() {
           {error && <div className="error-banner">{error}</div>}
 
           <button className="btn primary big block" disabled={busy}>
-            {busy ? "Creating account…" : "Create account"}
+            {busy ? "Creating your account…" : "Create account"}
           </button>
         </form>
 
@@ -116,7 +116,7 @@ export default function Signup() {
           Already have an account? <Link to="/login">Log in</Link>
         </p>
       </div>
-      <p className="auth-foot">Real-time voice interviews with an adaptive AI interviewer.</p>
+      <p className="auth-foot">Practice interviews out loud with AI.</p>
     </div>
   );
 }

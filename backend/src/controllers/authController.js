@@ -56,7 +56,7 @@ export async function signup(req, res) {
       return res.status(409).json({ error: "An account with that email already exists" });
     }
     console.error("[signup]", err);
-    return res.status(500).json({ error: "Signup failed" });
+    return res.status(500).json({ error: "Something went wrong. Try again in a moment." });
   }
 }
 
@@ -68,13 +68,13 @@ export async function login(req, res) {
   try {
     const user = await prisma.user.findUnique({ where: { email: email.toLowerCase().trim() } });
     if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-      return res.status(401).json({ error: "Invalid email or password" });
+      return res.status(401).json({ error: "That email or password doesn't look right." });
     }
     generateTokenAndSetCookie(res, user.id);
     return res.json({ user: publicUser(user) });
   } catch (err) {
     console.error("[login]", err);
-    return res.status(500).json({ error: "Login failed" });
+    return res.status(500).json({ error: "Something went wrong. Try again in a moment." });
   }
 }
 

@@ -79,18 +79,18 @@ export default function Dashboard() {
             <TypeIcon icon="doc" size={18} />
           </span>
           <span className="pb-text">
-            <strong>Add your resume for a tailored interview.</strong> The interviewer will ask
-            about your real projects, and your report gets a resume-vs-interview gap analysis.
+            <strong>Add your resume for smarter questions.</strong> Get questions based on your
+            actual experience—and see where your resume and interview answers don't match.
           </span>
-          <span className="pb-cta">Add resume →</span>
+          <span className="pb-cta">Upload resume →</span>
         </button>
       )}
 
       <section className="fade-up">
         <div className="section-head">
           <span className="eyebrow">New session</span>
-          <h2>Start a new interview.</h2>
-          <p>Pick a format — your interviewer adapts to your role and level.</p>
+          <h2>Start practicing.</h2>
+          <p>Choose an interview. Your AI interviewer adapts as you go.</p>
         </div>
         <div className="type-grid">
           {INTERVIEW_TYPES.map((t) => (
@@ -123,7 +123,7 @@ export default function Dashboard() {
         <div className="session-list">
           {interviews.length === 0 ? (
             <div className="empty-state">
-              No interviews yet — pick a format above to run your first one.
+              No interviews yet. Your first one starts above.
             </div>
           ) : (
             interviews.map((iv) => (

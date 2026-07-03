@@ -4,7 +4,7 @@ export const INTERVIEW_TYPES = [
   {
     id: "behavioral",
     label: "Behavioral",
-    blurb: "Walk through past projects. Tests communication, STAR structure, and self-awareness.",
+    blurb: "Tell real stories from your experience. Tests communication, structure, and impact.",
     interviewer: "Maya Chen",
     accent: "#0070f3",
     soft: "#e9f2ff",
@@ -15,7 +15,7 @@ export const INTERVIEW_TYPES = [
   {
     id: "technical",
     label: "Technical",
-    blurb: "A spoken deep-dive into your stack. Tests depth of knowledge and problem-solving.",
+    blurb: "Think through technical problems out loud. Tests depth of knowledge and problem-solving.",
     interviewer: "Alex Rivera",
     accent: "#7928ca",
     soft: "#f3ecfd",
@@ -26,7 +26,7 @@ export const INTERVIEW_TYPES = [
   {
     id: "system_design",
     label: "System Design",
-    blurb: "Design a real system out loud. Tests architecture thinking and tradeoffs.",
+    blurb: "Design systems, explain tradeoffs, defend your choices. Tests architecture thinking.",
     interviewer: "Priya Nair",
     accent: "#ab570a",
     soft: "#ffefcf",
@@ -37,7 +37,7 @@ export const INTERVIEW_TYPES = [
   {
     id: "hr",
     label: "HR / Culture Fit",
-    blurb: "The human conversation. Tests motivation, values, and situational judgment.",
+    blurb: "Motivation, teamwork, conflict, and culture fit. Tests values and situational judgment.",
     interviewer: "Jordan Blake",
     accent: "#eb367f",
     soft: "#fde7f0",

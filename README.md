@@ -1,16 +1,16 @@
 # InterviewLab
 
-Voice-only AI mock interview platform. You talk, an AI interviewer listens and responds in real time (native barge-in, no push-to-talk), and afterward you get a scored report with per-question review.
+Voice-first AI mock interviews. Talk naturally, get real-time follow-up questions, and finish with a detailed report that shows exactly how to improve.
 
-<img width="1501" height="854" alt="Screenshot 2026-07-03 at 6 27 02 PM" src="https://github.com/user-attachments/assets/c70117a6-f900-49c0-a74d-4fd295d34730" />
+<img width="1501" height="854" alt="Screenshot 2026-07-03 at 6 27 02 PM" src="https://github.com/user-attachments/assets/c70117a6-f900-49c0-a74d-4fd295d34730" />
 
 ## Main Features
 
-- **Real-time voice interviews** : Fully spoken, back-and-forth conversation with an AI interviewer across 4 formats (Behavioral, Technical, System Design, HR), each with its own persona and rubric.
-- **Adaptive questioning** :A decision engine reads every answer and adjusts live: weak answer → follow-up probe, strong answer → harder question, then wraps up once the rubric is covered.
-- **Resume + JD personalization** : Add your resume and paste the target job description; the interviewer asks about your real projects for that specific role, and the report includes a resume-vs-interview gap analysis.
-- **Deep scored feedback report** : Overall score /100, hiring-manager verdict, top-3 fixes, per-competency 1–5 breakdown with evidence, and a question-by-question review with a concrete "try this instead."
-- **Natural conversation UX** : Tap-to-interrupt barge-in, an animated voice orb that reacts to speech, and objective delivery metrics (talk ratio, filler-word rate, avg words per answer).
+- **Real-time voice interviews** — Fully spoken, back-and-forth conversation with an AI interviewer across 4 formats (Behavioral, Technical, System Design, HR), each with its own persona and rubric.
+- **Adaptive questioning** — A decision engine reads every answer and adjusts live: weak answer → follow-up probe, strong answer → harder question, then wraps up once the rubric is covered.
+- **Resume + JD personalization** — Add your resume and paste the target job description; the interviewer asks about your real projects for that specific role, and the report includes a resume-vs-interview gap analysis.
+- **Deep scored feedback report** — Overall score /100, hiring-manager verdict, top-3 fixes, per-competency 1–5 breakdown with evidence, and a question-by-question review with a concrete "try this instead."
+- **Natural conversation UX** — Tap-to-interrupt barge-in, an animated voice orb that reacts to speech, and objective delivery metrics (talk ratio, filler-word rate, avg words per answer).
 
 ## Tech Stack
 
@@ -23,7 +23,7 @@ Voice-only AI mock interview platform. You talk, an AI interviewer listens and r
 | Interview brain | LangGraph + Groq (`gpt-oss-120b`) for live scoring/routing, with heuristic fallback |
 | Auth | JWT (`jsonwebtoken`) + `bcryptjs` |
 
-# User Flow
+## User Flow
 
 End-to-end journey a candidate takes through the app.
 
@@ -60,7 +60,7 @@ flowchart TD
     Report --> Retry[Start another interview] --> PickType
 ```
 
-# ER Diagram
+## ER Diagram
 
 Relational model as defined in `backend/prisma/schema.prisma`.
 
@@ -130,9 +130,7 @@ erDiagram
     }
 ```
 
-**Cascade:** deleting a `User` cascades to their `Interview`s; deleting an `Interview`
-cascades to its `Transcription`s, `Assessment`s and `Feedback`.
-
+**Cascade:** deleting a `User` cascades to their `Interview`s; deleting an `Interview` cascades to its `Transcription`s, `Assessment`s and `Feedback`.
 
 ## Project Structure
 
@@ -148,19 +146,19 @@ cascades to its `Transcription`s, `Assessment`s and `Feedback`.
 │       ├── controllers/      # authController, interviewController
 │       ├── routes/           # authRoutes, interviewRoutes
 │       ├── services/
-│       │   ├── voiceProxy.js         # WS bridge to Deepgram, call-ending state machine
-│       │   ├── functionHandlers.js   # record_assessment / submit_evaluation tools
-│       │   ├── transcriptEvaluator.js# post-call fallback scoring
+│       │   ├── voiceProxy.js          # WS bridge to Deepgram, call-ending state machine
+│       │   ├── functionHandlers.js    # record_assessment / submit_evaluation tools
+│       │   ├── transcriptEvaluator.js # post-call fallback scoring
 │       │   └── reportService.js
 │       ├── langGraph/        # state.js, nodes.js, interviewGraph.js, orchestrator.js
-│       ├── domain/interviewTypes.js  # per-type competencies/topics/phases
-│       ├── prompts/interviewer.js    # prompt builder (resume/JD threading)
+│       ├── domain/interviewTypes.js   # per-type competencies/topics/phases
+│       ├── prompts/interviewer.js     # prompt builder (resume/JD threading)
 │       └── middleware/verifyToken.js
 └── frontend/
     └── src/
-        ├── pages/             # Login, Signup, Dashboard, InterviewRoom, Report
-        ├── components/        # ProfileModal, VoiceOrb, Brand
-        ├── audio/              # recorder.js, player.js (PCM), sfx.js (chimes)
+        ├── pages/          # Login, Signup, Dashboard, InterviewRoom, Report
+        ├── components/     # ProfileModal, VoiceOrb, Brand
+        ├── audio/          # recorder.js, player.js (PCM), sfx.js (chimes)
         └── styles/
 ```
 
@@ -227,6 +225,7 @@ Set in `backend/.env` (see `backend/.env.example`):
 ## API Overview
 
 **Auth** (`/api/auth`)
+
 | Method | Path | Notes |
 |---|---|---|
 | POST | `/signup` | Create account (email, password, name, jobRole, experienceLevel) |
@@ -236,6 +235,7 @@ Set in `backend/.env` (see `backend/.env.example`):
 | PATCH | `/profile` | Partial update — resume text, skills, years of experience |
 
 **Interviews** (`/api/interviews`, all auth-required)
+
 | Method | Path | Notes |
 |---|---|---|
 | POST | `/` | Create interview (type, optional jdText) |
@@ -245,11 +245,13 @@ Set in `backend/.env` (see `backend/.env.example`):
 | POST | `/:id/finish` | Finalize + generate fallback feedback if needed |
 
 **Voice** (WebSocket)
+
 | Path | Notes |
 |---|---|
 | `WS /api/interviews/:id/voice` | Cookie-authenticated, ownership-checked bridge to the Deepgram Voice Agent. Client streams PCM in, receives PCM + control events out. |
 
 **Misc**
+
 | Method | Path | Notes |
 |---|---|---|
 | GET | `/api/health` | Liveness check |
@@ -264,7 +266,6 @@ Set in `backend/.env` (see `backend/.env.example`):
 | **Raw `ws`** instead of the Deepgram SDK socket | More boilerplate, but the SDK v5 client corrupts binary audio frames — raw `ws` avoids the bug. |
 | **LangGraph director** with a heuristic fallback | An extra LLM hop (Groq) vs. letting the model run autonomously, but gives deterministic difficulty/topic routing. Falls back to rule-based logic if the key's missing — keeps running with zero extra keys. |
 
-
 ## Cost Analysis
 
 | Service | Role in app | Config |
@@ -274,36 +275,35 @@ Set in `backend/.env` (see `backend/.env.example`):
 
 > Deepgram bills on **WebSocket connection time**, not just speech — idle/listening time counts.
 
-## Unit pricing
+### Unit pricing
 
-### Deepgram — Voice Agent API, **Standard** tier (per minute)
+**Deepgram — Voice Agent API, Standard tier (per minute)**
 
 | Plan | Price |
 |---|---|
 | Pay As You Go | **$0.075/min** |
 | Growth | **$0.068/min** |
 
-### Groq — **gpt-oss-120b** (per 1M tokens)
+**Groq — `gpt-oss-120b` (per 1M tokens)**
 
 | Input | Output |
 |---|---|
 | **$0.15** | **$0.60** |
 
-## Cost per interview
+### Cost per interview
 
-**Assumptions:** ~10 min average call (soft-wrap 7 min, hard cap 11 min); ~8 answer exchanges; Groq
-called ~2–3× per exchange + final feedback ≈ **45K input / 4K output tokens** per interview.
+**Assumptions:** ~10 min average call (soft-wrap 7 min, hard cap 11 min); ~8 answer exchanges; Groq called ~2–3× per exchange + final feedback ≈ **45K input / 4K output tokens** per interview.
 
 | Component | Per interview | Share |
 |---|---|---|
 | Deepgram Voice Agent (Standard, PAYG) — 10 min × $0.075 | **$0.750** | ~99% |
-| Groq gpt-oss-120b — 45K×$0.15/M + 4K×$0.60/M | **$0.009** | ~1% |
+| Groq gpt-oss-120b — 45K × $0.15/M + 4K × $0.60/M | **$0.009** | ~1% |
 | **Total (PAYG)** | **≈ $0.76** | |
 | Total on Growth plan (10 min × $0.068 + Groq) | ≈ $0.69 | |
 
 **Deepgram is ~99% of cost; Groq is a rounding error (< 2¢).** Every optimization dollar is in Deepgram minutes.
 
-## At scale (PAYG, Standard)
+### At scale (PAYG, Standard)
 
 | Volume | Deepgram | Groq | **Total** |
 |---|---|---|---|
@@ -311,12 +311,11 @@ called ~2–3× per exchange + final feedback ≈ **45K input / 4K output tokens
 | 1,000 interviews | $750 | $9 | **~$759** |
 | 10,000 interviews | $7,500 | $90 | **~$7,590** |
 
-**Biggest lever:** average call length. Trimming the hard cap 11→8 min, or landing most calls near the
-7-min soft nudge, cuts Deepgram spend ~20–30% linearly.
+**Biggest lever:** average call length. Trimming the hard cap 11→8 min, or landing most calls near the 7-min soft nudge, cuts Deepgram spend ~20–30% linearly.
 
-## Rate limits
+### Rate limits
 
-### Deepgram — per **project** (429 on exceed)
+**Deepgram — per project (429 on exceed)**
 
 | API | Pay As You Go | Growth |
 |---|---|---|
@@ -324,7 +323,7 @@ called ~2–3× per exchange + final feedback ≈ **45K input / 4K output tokens
 | Streaming STT (WSS) | 150 | 225 (NA) |
 | TTS streaming | 45 | 60 (NA) |
 
-### Groq — free tier (current constraint on `gpt-oss-120b`)
+**Groq — free tier (current constraint on `gpt-oss-120b`)**
 
 | Limit | Free tier |
 |---|---|

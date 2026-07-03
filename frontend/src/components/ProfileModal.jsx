@@ -69,8 +69,8 @@ export default function ProfileModal({ onClose }) {
           <div>
             <h2>Your profile</h2>
             <p className="muted small">
-              Your resume and skills let the interviewer ask questions about your real work — and
-              power the resume-vs-interview gap analysis in your report.
+              Your profile helps the interviewer ask better questions—and compare your resume with
+              your interview answers.
             </p>
           </div>
           <button className="modal-x" onClick={onClose} aria-label="Close">
@@ -135,7 +135,7 @@ export default function ProfileModal({ onClose }) {
             value={form.resumeText}
             onChange={set("resumeText")}
             maxLength={RESUME_MAX_CHARS}
-            placeholder="Paste your resume here: experience, projects, and the technologies you've used."
+            placeholder="Paste plain text—experience, projects, and the technologies you've used. No formatting needed."
             rows={9}
           />
           <div className="resume-foot">
@@ -152,7 +152,7 @@ export default function ProfileModal({ onClose }) {
             Cancel
           </button>
           <button className="btn primary" onClick={save} disabled={busy}>
-            {busy ? "Saving…" : "Save profile"}
+            {busy ? "Saving…" : "Save changes"}
           </button>
         </div>
       </div>

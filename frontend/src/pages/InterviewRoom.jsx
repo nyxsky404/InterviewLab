@@ -277,10 +277,10 @@ export default function InterviewRoom() {
             with {meta.interviewer} · AI interviewer · ~10 minutes · voice only
           </p>
           <ul className="lobby-tips">
-            <li>Find a quiet spot — headphones help a lot.</li>
-            <li>Just talk naturally. The interviewer listens and follows up on what you say.</li>
-            <li>Your mic mutes while the interviewer speaks — tap the mic to interrupt and jump in.</li>
-            <li>End whenever you like — your feedback report is generated either way.</li>
+            <li>Find a quiet place. Headphones help.</li>
+            <li>Don't memorize. Talk like it's a real interview.</li>
+            <li>The interviewer speaks first. Tap the mic anytime to jump in.</li>
+            <li>Leave anytime. You'll still get feedback.</li>
           </ul>
 
           <div className="lobby-setup">
@@ -288,24 +288,23 @@ export default function InterviewRoom() {
               <span className="dot" />
               {user?.hasResume ? (
                 <span>
-                  Personalized from your resume. The interviewer will reference your real work.
+                  Resume loaded. Questions will reference your experience.
                 </span>
               ) : (
                 <span>
-                  No resume on file — add one from the dashboard for questions tailored to your
-                  experience.
+                  No resume yet. Add one later for more personalized interviews.
                 </span>
               )}
             </div>
 
             {jdOpen ? (
               <div className="jd-field">
-                <label htmlFor="jd">Tailor to a job description (optional)</label>
+                <label htmlFor="jd">Target a specific job (optional)</label>
                 <textarea
                   id="jd"
                   value={jd}
                   onChange={(e) => setJd(e.target.value)}
-                  placeholder="Paste the job description you're targeting."
+                  placeholder="Paste the job description here."
                   rows={5}
                   maxLength={JD_MAX_CHARS}
                 />
@@ -317,14 +316,14 @@ export default function InterviewRoom() {
               </div>
             ) : (
               <button type="button" className="jd-toggle" onClick={() => setJdOpen(true)}>
-                + Tailor to a job description
+                + Target a specific job
               </button>
             )}
           </div>
 
           {error && <div className="lobby-error">{error}</div>}
           <button className="btn primary big block" onClick={begin} disabled={!interview}>
-            {interview ? "Join interview" : "Loading…"}
+            {interview ? "Join" : "Loading…"}
           </button>
           <button className="btn ghost block" onClick={() => navigate("/")}>
             Back to dashboard
@@ -356,7 +355,11 @@ export default function InterviewRoom() {
         <div className="stage-id">
           <div className="name">{meta.interviewer}</div>
           <div className="status">
-            {phase === "connecting" ? "Setting up your interview…" : agentSpeaking ? "Speaking…" : ""}
+            {phase === "connecting"
+              ? "Getting your interviewer ready…"
+              : agentSpeaking
+                ? "Interviewer is speaking…"
+                : ""}
           </div>
         </div>
 
@@ -366,7 +369,7 @@ export default function InterviewRoom() {
             <i />
             <i />
           </span>
-          You're speaking
+          You're live
         </div>
       </main>
 
@@ -447,7 +450,7 @@ export default function InterviewRoom() {
           {transcript.length === 0 && (
             <p className="t-line">
               <span className="t-text" style={{ color: "var(--stage-text-2)" }}>
-                The conversation will appear here.
+                Your conversation will appear here.
               </span>
             </p>
           )}
@@ -464,7 +467,11 @@ export default function InterviewRoom() {
         <div className="room-ended">
           <div className="panel">
             <div className="spinner" />
-            Wrapping up and writing your feedback report…
+            <span>
+              Wrapping up your interview…
+              <br />
+              Building your feedback report.
+            </span>
           </div>
         </div>
       )}

@@ -35,7 +35,7 @@ export default function Login() {
       <div className="card auth-card fade-up">
         <span className="eyebrow">Sign in</span>
         <h1>Welcome back.</h1>
-        <p className="lede">Log in to practice your next interview.</p>
+        <p className="lede">Pick up where you left off.</p>
 
         <form onSubmit={submit}>
           <label htmlFor="email">Email</label>
@@ -62,7 +62,7 @@ export default function Login() {
           {error && <div className="error-banner">{error}</div>}
 
           <button className="btn primary big block" disabled={busy}>
-            {busy ? "Logging in…" : "Log in"}
+            {busy ? "Signing you in…" : "Log in"}
           </button>
         </form>
 
@@ -70,7 +70,7 @@ export default function Login() {
           New here? <Link to="/signup">Create an account</Link>
         </p>
       </div>
-      <p className="auth-foot">Real-time voice interviews with an adaptive AI interviewer.</p>
+      <p className="auth-foot">Practice interviews out loud with AI.</p>
     </div>
   );
 }

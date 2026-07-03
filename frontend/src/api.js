@@ -1,7 +1,9 @@
+const API_BASE = import.meta.env.VITE_API_URL || "";
+
 async function request(path, { method = "GET", body } = {}) {
   const headers = { "Content-Type": "application/json" };
 
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(`${API_BASE}/api${path}`, {
     method,
     headers,
     credentials: "include",
@@ -34,9 +36,14 @@ export const api = {
   finishInterview: (id) => request(`/interviews/${id}/finish`, { method: "POST" }),
 };
 
-// Build the WebSocket URL for the voice session (same origin -> Vite proxy).
+// Build the WebSocket URL for the voice session. In dev this is same-origin
+// (Vite proxy); in production it points at VITE_API_URL (the Render backend).
 // Auth travels via the httpOnly cookie, sent automatically on the upgrade request.
 export function voiceWsUrl(interviewId) {
+  if (API_BASE) {
+    const wsBase = API_BASE.replace(/^http/, "ws");
+    return `${wsBase}/api/interviews/${interviewId}/voice`;
+  }
   const proto = location.protocol === "https:" ? "wss" : "ws";
   return `${proto}://${location.host}/api/interviews/${interviewId}/voice`;
 }
