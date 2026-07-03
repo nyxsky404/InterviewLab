@@ -18,7 +18,7 @@ function startingDifficulty(user) {
 // Initialize a new interview session and generate the opening question.
 async function start(interviewId, ctx) {
   const input = {
-    interviewId,
+    interviewId: String(interviewId),
     type: ctx.type,
     user: ctx.user || {},
     jdText: ctx.jdText || "",
