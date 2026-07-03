@@ -4,32 +4,30 @@ Voice-only AI mock interview platform. You talk, an AI interviewer listens and r
 
 <img width="1501" height="854" alt="Screenshot 2026-07-03 at 6 27 02 PM" src="https://github.com/user-attachments/assets/c70117a6-f900-49c0-a74d-4fd295d34730" />
 
+## Main Features
 
-## Features
-
-- **Real-time voice interview** over a single WebSocket — no separate STT/LLM/TTS round trips, low-latency native barge-in.
-- **Adaptive interview brain** (LangGraph) that scores each answer, adjusts difficulty, and decides the next question/topic/wrap-up live — with heuristic fallbacks if no LLM key is configured.
-- **Resume + JD personalization** — paste your resume once (reused across interviews) and a job description per interview; both feed the interviewer's prompt and the final gap analysis.
-- **Graceful call ending** — soft nudge → escalation → hard cap, all designed to end on a spoken goodbye rather than a mid-sentence cut.
-- **Scored feedback report** — overall score ring, per-competency breakdown, STAR/phase timeline, strengths & growth areas, per-question review.
-- **Auth** — JWT + bcrypt, cookie-based sessions.
+- **Real-time voice interviews** : Fully spoken, back-and-forth conversation with an AI interviewer across 4 formats (Behavioral, Technical, System Design, HR), each with its own persona and rubric.
+- **Adaptive questioning** :A decision engine reads every answer and adjusts live: weak answer → follow-up probe, strong answer → harder question, then wraps up once the rubric is covered.
+- **Resume + JD personalization** : Add your resume and paste the target job description; the interviewer asks about your real projects for that specific role, and the report includes a resume-vs-interview gap analysis.
+- **Deep scored feedback report** : Overall score /100, hiring-manager verdict, top-3 fixes, per-competency 1–5 breakdown with evidence, and a question-by-question review with a concrete "try this instead."
+- **Natural conversation UX** : Tap-to-interrupt barge-in, an animated voice orb that reacts to speech, and objective delivery metrics (talk ratio, filler-word rate, avg words per answer).
 
 ## Tech Stack
 
 | Layer | Choice |
 |---|---|
 | Frontend | React 18 (Vite), React Router |
-| Backend | Node.js, Express, `ws` (raw WebSocket) |
+| Backend | Node.js, Express, WebSocket |
 | Database | PostgreSQL 16 (Docker), Prisma 6 ORM |
-| Voice engine | [Deepgram Voice Agent API](https://developers.deepgram.com/) — single WS: STT (Nova-3) + LLM + TTS (Aura-2), native barge-in |
-| Interview LLM | Deepgram-managed `think` model (Anthropic Claude, no bring-your-own key) |
-| Interview brain | LangGraph (`@langchain/langgraph`) + Groq (`gpt-oss-120b`) for live scoring/routing, with heuristic fallback |
+| Voice engine | Deepgram Voice Agent API: STT (Nova-3) + LLM + TTS (Aura-2) |
+| Interview brain | LangGraph + Groq (`gpt-oss-120b`) for live scoring/routing, with heuristic fallback |
 | Auth | JWT (`jsonwebtoken`) + `bcryptjs` |
 
 # User Flow
 
 End-to-end journey a candidate takes through the app.
 
+```mermaid
 flowchart TD
     Start([Land on app]) --> HasAcct{Has account?}
     HasAcct -- No --> Signup[Sign up: name, email,<br/>job role, experience]
@@ -60,6 +58,7 @@ flowchart TD
     Finish --> Report[Feedback report:<br/>score ring, per-competency,<br/>STAR, strengths, growth, timeline]
     Report --> Dash
     Report --> Retry[Start another interview] --> PickType
+```
 
 # ER Diagram
 
