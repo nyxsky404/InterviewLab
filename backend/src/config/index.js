@@ -1,28 +1,11 @@
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import dotenv from "dotenv";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-// .env lives at the backend package root (backend/.env).
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
-
-function required(name) {
-  const value = process.env[name];
-  if (!value) {
-    console.error(`\n[config] Missing required env var: ${name}`);
-    console.error(`[config] Copy .env.example -> .env and fill it in.\n`);
-    process.exit(1);
-  }
-  return value;
-}
+import "dotenv/config";
 
 export const config = {
   port: Number(process.env.PORT || 4000),
   clientOrigin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
-  databaseUrl: required("DATABASE_URL"),
-  jwtSecret: required("JWT_SECRET"),
-  deepgramApiKey: required("DEEPGRAM_API_KEY"),
+  databaseUrl: process.env.DATABASE_URL,
+  jwtSecret: process.env.JWT_SECRET,
+  deepgramApiKey: process.env.DEEPGRAM_API_KEY,
   // Deepgram-managed "think" LLM (no BYO credentials/endpoint).
   // Model string must be one Deepgram hosts AND currently resolvable by the
   // upstream provider. The dated snapshot claude-sonnet-4-20250514 is listed in
