@@ -2,6 +2,8 @@
 
 Voice-only AI mock interview platform. You talk, an AI interviewer listens and responds in real time (native barge-in, no push-to-talk), and afterward you get a scored report with per-question review.
 
+<img width="1501" height="854" alt="Screenshot 2026-07-03 at 6 27 02 PM" src="https://github.com/user-attachments/assets/c70117a6-f900-49c0-a74d-4fd295d34730" />
+
 
 ## Features
 
@@ -11,7 +13,6 @@ Voice-only AI mock interview platform. You talk, an AI interviewer listens and r
 - **Graceful call ending** — soft nudge → escalation → hard cap, all designed to end on a spoken goodbye rather than a mid-sentence cut.
 - **Scored feedback report** — overall score ring, per-competency breakdown, STAR/phase timeline, strengths & growth areas, per-question review.
 - **Auth** — JWT + bcrypt, cookie-based sessions.
-- One interview type fully implemented (**Behavioral**); Technical / System Design / HR are stubbed as "coming soon".
 
 ## Tech Stack
 
@@ -109,10 +110,6 @@ npm install
 npm run dev            # http://localhost:5173
 ```
 
-This is two independent npm projects (no root package.json / workspaces) — `backend/` and `frontend/` are installed and run separately.
-
-A seeded test user is available: `cand@test.com` / `secret1`.
-
 ## Environment Variables
 
 Set in `backend/.env` (see `backend/.env.example`):
@@ -179,26 +176,77 @@ Set in `backend/.env` (see `backend/.env.example`):
 
 | Decision | Trade-off accepted |
 |---|---|
-| **Deepgram Voice Agent (single WS)** over separate STT/LLM/TTS calls | Less control over each stage individually, but native barge-in and far lower round-trip latency than chaining three services yourself. |
-| **Deepgram-managed LLM** (`think.provider=anthropic`, no bring-your-own key) | Can't swap models freely inside the voice loop or self-host the interviewer's reasoning, but avoids running a second inference hop in the hot path and keeps only one secret (`DEEPGRAM_API_KEY`) for the voice loop. |
-| **Raw `ws` instead of the Deepgram SDK socket** | More boilerplate (manual message framing), but the SDK v5 client JSON-parses binary audio frames and corrupts them — raw `ws` avoids that bug entirely. |
-| **LangGraph director alongside the voice prompt** (added post-MVP) | More moving parts (a second LLM hop on Groq, state checkpointing) than trusting the Deepgram-managed model to run the whole interview autonomously, but gives deterministic, inspectable control over difficulty/topic routing and a human-in-the-loop intervene endpoint. Heuristic fallback keeps it running with zero extra keys. |
-| **Only Behavioral fully implemented** | Narrower scope than "4 interview types," but lets one type (prompts, competencies, phase report) be built and verified properly rather than four shallow ones. |
-| **Client-gated mic (button-triggered barge-in) instead of free talk-over** | Slightly less "natural" than always-on VAD barge-in, but avoids accidental interruptions from background noise triggering Deepgram's native barge-in. |
-| **Two separate npm projects, no monorepo tooling** | No shared dependency hoisting/workspace scripts, but avoids workspace tooling overhead for a two-package take-home. |
-| **Graceful hard cap (soft nudge → escalation → forced close) instead of an instant cutoff** | More implementation complexity (multi-stage state machine, retry logic) than `maxDurationSeconds`-style blunt cutoff, but the interview always ends on a spoken goodbye instead of mid-sentence. |
+| **Deepgram Voice Agent API (single WS)** over building my own STT→LLM→TTS pipeline or using LiveKit | Less control over each stage, but native barge-in, one round trip instead of three, and one secret. Rolling my own means owning VAD/endpointing/buffering; LiveKit is just transport — I'd still orchestrate the three model calls myself. |
+| **Prisma ORM** instead of raw SQL | Extra dependency + migration step, but type-safe queries and versioned migrations — safer as the schema kept evolving. |
+| **Client-gated mic** (auto-mutes while the agent speaks; tap to interrupt) instead of always-on talk-over | Less "natural" — you tap to interrupt — but background noise can't accidentally cut off the interviewer. Calmer, more predictable. |
+| **Raw `ws`** instead of the Deepgram SDK socket | More boilerplate, but the SDK v5 client corrupts binary audio frames — raw `ws` avoids the bug. |
+| **LangGraph director** with a heuristic fallback | An extra LLM hop (Groq) vs. letting the model run autonomously, but gives deterministic difficulty/topic routing. Falls back to rule-based logic if the key's missing — keeps running with zero extra keys. |
+
 
 ## Cost Analysis
 
-Rough marginal cost per ~10-minute behavioral interview (list prices, check current provider pricing before relying on this for budgeting):
-
-| Component | Basis | Approx. cost / interview |
+| Service | Role in app | Config |
 |---|---|---|
-| Deepgram Voice Agent (STT + TTS + Deepgram-managed think passthrough) | ~10 min audio in + out, Nova-3 + Aura-2 | ~$0.10–$0.20 |
-| Anthropic think model (Deepgram-managed, per-turn) | ~15–20 short turns, small context each | included in Deepgram voice-agent billing (no separate Anthropic key/bill) |
-| Groq LangGraph nodes (evaluate/route/generate, `gpt-oss-120b`) | ~8–9 question cycles × small prompt/completion | ~$0.01–$0.03 (Groq's `gpt-oss-120b` pricing is inference-optimized/low-cost) |
-| Post-call fallback evaluation (Groq) | 1 call, larger context (full transcript) | ~$0.01 |
-| PostgreSQL / hosting | self-hosted Docker container | negligible (infra cost only) |
-| **Total per interview** | | **≈ $0.12–$0.25** |
+| **Deepgram Voice Agent API** | The whole voice loop over one WebSocket: Nova-3 STT + Deepgram-managed LLM + Aura-2 TTS | **Standard** tier |
+| **Groq `gpt-oss-120b`** | LangGraph "director" brain: scores answers, adjusts difficulty, picks next question | Optional (heuristic fallback if no key) |
 
-Biggest lever on cost is Deepgram voice-minutes (dominates the total) — the graceful-ending logic that avoids letting calls run past ~11 minutes is a direct cost control, not just a UX one. Groq's LangGraph layer is comparatively negligible since it operates on short per-turn text, not audio.
+> Deepgram bills on **WebSocket connection time**, not just speech — idle/listening time counts.
+
+## Unit pricing
+
+### Deepgram — Voice Agent API, **Standard** tier (per minute)
+
+| Plan | Price |
+|---|---|
+| Pay As You Go | **$0.075/min** |
+| Growth | **$0.068/min** |
+
+### Groq — **gpt-oss-120b** (per 1M tokens)
+
+| Input | Output |
+|---|---|
+| **$0.15** | **$0.60** |
+
+## Cost per interview
+
+**Assumptions:** ~10 min average call (soft-wrap 7 min, hard cap 11 min); ~8 answer exchanges; Groq
+called ~2–3× per exchange + final feedback ≈ **45K input / 4K output tokens** per interview.
+
+| Component | Per interview | Share |
+|---|---|---|
+| Deepgram Voice Agent (Standard, PAYG) — 10 min × $0.075 | **$0.750** | ~99% |
+| Groq gpt-oss-120b — 45K×$0.15/M + 4K×$0.60/M | **$0.009** | ~1% |
+| **Total (PAYG)** | **≈ $0.76** | |
+| Total on Growth plan (10 min × $0.068 + Groq) | ≈ $0.69 | |
+
+**Deepgram is ~99% of cost; Groq is a rounding error (< 2¢).** Every optimization dollar is in Deepgram minutes.
+
+## At scale (PAYG, Standard)
+
+| Volume | Deepgram | Groq | **Total** |
+|---|---|---|---|
+| 100 interviews | $75 | $0.90 | **~$76** |
+| 1,000 interviews | $750 | $9 | **~$759** |
+| 10,000 interviews | $7,500 | $90 | **~$7,590** |
+
+**Biggest lever:** average call length. Trimming the hard cap 11→8 min, or landing most calls near the
+7-min soft nudge, cuts Deepgram spend ~20–30% linearly.
+
+## Rate limits
+
+### Deepgram — per **project** (429 on exceed)
+
+| API | Pay As You Go | Growth |
+|---|---|---|
+| **Voice Agent (WSS)** ← *ours* | **45 concurrent connections** | 60 (NA) / 45 (EU/AU) |
+| Streaming STT (WSS) | 150 | 225 (NA) |
+| TTS streaming | 45 | 60 (NA) |
+
+### Groq — free tier (current constraint on `gpt-oss-120b`)
+
+| Limit | Free tier |
+|---|---|
+| Requests / min | 30 RPM |
+| Requests / day | 1,000 RPD |
+| Tokens / min | **8,000 TPM** ⚠️ |
+| Tokens / day | **200,000 TPD** ⚠️ |
