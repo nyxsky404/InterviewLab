@@ -5,6 +5,7 @@ import Signup from "./pages/Signup.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import InterviewRoom from "./pages/InterviewRoom.jsx";
 import Report from "./pages/Report.jsx";
+import Landing from "./pages/Landing.jsx";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -15,7 +16,7 @@ function Protected({ children }) {
       </div>
     );
   }
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/" replace />;
   return children;
 }
 
@@ -23,16 +24,31 @@ export default function App() {
   const { user, loading } = useAuth();
   return (
     <Routes>
+      {/* Public marketing landing */}
+      <Route
+        path="/"
+        element={loading ? null : user ? <Navigate to="/dashboard" replace /> : <Landing />}
+      />
+
+      {/* Redirect old /landing to / */}
+      <Route
+        path="/landing"
+        element={<Navigate to="/" replace />}
+      />
+
+      {/* Auth */}
       <Route
         path="/login"
-        element={loading ? null : user ? <Navigate to="/" replace /> : <Login />}
+        element={loading ? null : user ? <Navigate to="/dashboard" replace /> : <Login />}
       />
       <Route
         path="/signup"
-        element={loading ? null : user ? <Navigate to="/" replace /> : <Signup />}
+        element={loading ? null : user ? <Navigate to="/dashboard" replace /> : <Signup />}
       />
+
+      {/* Protected app routes */}
       <Route
-        path="/"
+        path="/dashboard"
         element={
           <Protected>
             <Dashboard />
@@ -55,6 +71,8 @@ export default function App() {
           </Protected>
         }
       />
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

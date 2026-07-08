@@ -33,7 +33,7 @@ export default function Signup() {
     try {
       const res = await api.signup(form);
       onAuthed(res);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {

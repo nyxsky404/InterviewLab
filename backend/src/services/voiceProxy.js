@@ -7,6 +7,7 @@ import {
   buildDirectivePrompt,
   buildGreeting,
   buildFunctionDefs,
+  buildEndSignalDefs,
 } from "../prompts/interviewer.js";
 import { handleFunctionCall, parseArguments } from "./functionHandlers.js";
 import { orchestrator } from "../langGraph/orchestrator.js";
@@ -76,6 +77,13 @@ export function attachVoiceProxy(client, ctx) {
         graphMode = false;
       }
     }
+    // The single source of truth for how THIS interview is actually being run,
+    // after any fallback has been applied.
+    console.log(
+      `[voiceProxy] interview ${interviewId} running in ${
+        graphMode ? "GRAPH (director)" : "AUTONOMOUS (self-driving agent)"
+      } mode`
+    );
     dg.send(JSON.stringify(buildSettings({ type, user, jdText, graphMode })));
     keepAlive = setInterval(() => {
       if (dg.readyState === WebSocket.OPEN) dg.send(JSON.stringify({ type: "KeepAlive" }));
@@ -435,7 +443,7 @@ function buildSettings({ type, user, jdText, graphMode }) {
     ? {
         provider: { type: llm.type, model: llm.model, temperature: llm.temperature },
         prompt: buildDeliveryInstructions({ type, user, jdText }),
-        functions: [],
+        functions: buildEndSignalDefs(),
       }
     : {
         provider: { type: llm.type, model: llm.model, temperature: llm.temperature },

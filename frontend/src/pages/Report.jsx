@@ -117,7 +117,7 @@ export default function Report() {
         <div className="card report-empty">
           <h2>Couldn't load this report</h2>
           <p>{error}</p>
-          <Link className="btn primary" to="/">
+          <Link className="btn primary" to="/dashboard">
             Back to dashboard
           </Link>
         </div>
@@ -154,7 +154,7 @@ export default function Report() {
         <div className="card report-empty">
           <h2>No interview to review.</h2>
           <p>This interview ended before any conversation was recorded.</p>
-          <button className="btn primary" onClick={() => navigate("/")}>
+          <button className="btn primary" onClick={() => navigate("/dashboard")}>
             Back to dashboard
           </button>
         </div>
@@ -179,7 +179,7 @@ export default function Report() {
     <div className="report">
       <header className="topbar">
         <Brand />
-        <Link className="btn small" to="/">
+        <Link className="btn small" to="/dashboard">
           ← Dashboard
         </Link>
       </header>

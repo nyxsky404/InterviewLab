@@ -325,7 +325,7 @@ export default function InterviewRoom() {
           <button className="btn primary big block" onClick={begin} disabled={!interview}>
             {interview ? "Join" : "Loading…"}
           </button>
-          <button className="btn ghost block" onClick={() => navigate("/")}>
+          <button className="btn ghost block" onClick={() => navigate("/dashboard")}>
             Back to dashboard
           </button>
         </div>

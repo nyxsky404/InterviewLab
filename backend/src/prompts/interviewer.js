@@ -220,8 +220,10 @@ to deliver it as a real human interviewer would:
   meant only for you — the candidate must never hear them. Speak ONLY the natural
   question or closing line, never the scaffolding around it.
 - When a NEXT MOVE tells you to wrap up, give one short closing line, thank them,
-  let them know their feedback is on the way, and then STOP — ask nothing more.
-  Do not announce, name, or read out any tool; just say the closing words.`;
+  let them know their feedback is on the way, and then silently CALL the
+  submit_evaluation tool to end the session — call it, never speak its name. Ask
+  nothing more after that. (Calling the tool is how the call actually ends; a
+  spoken goodbye alone will leave the line open.)`;
 }
 
 // The UpdatePrompt payload the voiceProxy sends after each graph step. It's
@@ -247,6 +249,28 @@ export function buildGreeting({ type, user }) {
   const t = promptFor(type);
   const first = (user.name || "there").split(" ")[0];
   return `Hey ${first}, good to meet you. I'm ${rubric.interviewer}, and I'll be your interviewer today. We'll spend about ten minutes talking through ${t.greetingScope}. I'll probably interrupt from time to time to dig deeper into certain parts — that's completely normal. Take your time, be as specific as you can, and if you need a moment to think, that's perfectly fine. ${t.opener}`;
+}
+
+// The end-of-interview signal. voiceProxy turns a call to this into the graceful
+// close (see onFunctionCalls), so it must be registered in BOTH modes — in graph
+// mode the director usually drives the close, but registering this tool means a
+// self-initiated or director-prompted wrap-up deterministically ends the call
+// instead of leaving it hanging (the agent CALLS the tool rather than merely
+// speaking its name).
+const SUBMIT_EVALUATION_DEF = {
+  name: "submit_evaluation",
+  description:
+    "Signal that the interview is over. Call this exactly once, right after your closing line, to end the session. The written report is generated separately from the full transcript, so you do not need to provide any scores or summary here.",
+  parameters: {
+    type: "object",
+    properties: {},
+  },
+};
+
+// Graph ("director") mode: the director owns scoring and strategy, so the only
+// tool the voice agent needs is the end signal.
+export function buildEndSignalDefs() {
+  return [SUBMIT_EVALUATION_DEF];
 }
 
 // Deepgram Voice Agent function definitions, passed in agent.think.functions.
@@ -287,14 +311,6 @@ export function buildFunctionDefs(type) {
         required: ["competency", "topic", "score", "note"],
       },
     },
-    {
-      name: "submit_evaluation",
-      description:
-        "Signal that the interview is over. Call this exactly once, right after your closing line, to end the session. The written report is generated separately from the full transcript, so you do not need to provide any scores or summary here.",
-      parameters: {
-        type: "object",
-        properties: {},
-      },
-    },
+    SUBMIT_EVALUATION_DEF,
   ];
 }

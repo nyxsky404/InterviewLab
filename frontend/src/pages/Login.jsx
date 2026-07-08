@@ -21,7 +21,7 @@ export default function Login() {
     try {
       const res = await api.login(form);
       onAuthed(res);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       setError(err.message);
     } finally {
