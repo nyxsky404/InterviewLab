@@ -24,10 +24,9 @@ export default function App() {
   const { user, loading } = useAuth();
   return (
     <Routes>
-      {/* Public marketing landing */}
       <Route
         path="/"
-        element={loading ? null : user ? <Navigate to="/dashboard" replace /> : <Landing />}
+        element={<Landing />}
       />
 
       {/* Redirect old /landing to / */}

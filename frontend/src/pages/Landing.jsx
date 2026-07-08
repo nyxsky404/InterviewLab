@@ -508,13 +508,13 @@ export default function Landing() {
         <div className="lp-container">
           <div className="lp-hero__inner">
             {/* Announcement chip */}
-            <a href="#features" className="lp-banner lp-fade-up" aria-label="Learn about resume personalization">
+            <Link to="/login" className="lp-banner lp-fade-up" aria-label="Learn about resume personalization">
               <span className="lp-banner__new">New</span>
               The interviewer now knows your résumé — and asks about it.
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
                 <path d="M2.5 6H9.5M6.5 3L9.5 6L6.5 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-            </a>
+            </Link>
 
             {/* Headline */}
             <h1 id="hero-headline" className="lp-hero__headline lp-fade-up lp-fade-up--d1">
@@ -571,7 +571,7 @@ export default function Landing() {
           <div className="lp-types-row" aria-label="Interview formats available">
             {INTERVIEW_TYPES.map(({ label, color, icon }) => (
               <div className="lp-type-pill" key={label}>
-                <span className="lp-type-pill__icon" aria-hidden="true" style={{ background: color + "18", color }}>
+                <span className="lp-type-pill__icon" aria-hidden="true" style={{ color }}>
                   {icon}
                 </span>
                 {label}
